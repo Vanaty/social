@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Create Chat</title>
+<style>
+    body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; background-color: #f5f5f5; }
+    .container { max-width: 800px; margin: 0 auto; padding: 20px; background-color: white; border-radius: 8px; margin-top: 50px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+    .chat-type { margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+    input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+    button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    .btn-primary { background-color: #007bff; color: white; }
+    .btn-secondary { background-color: #6c757d; color: white; }
+    .btn-primary:hover { background-color: #0056b3; }
+    .btn-secondary:hover { background-color: #545b62; }
+    .user-list { max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; }
+    .user-checkbox { margin-bottom: 8px; }
+    .user-checkbox input { width: auto; margin-right: 8px; }
+    .error { color: #dc3545; font-size: 12px; margin-top: 5px; }
+    .success { color: #28a745; font-size: 14px; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>Create New Chat</h1>
+        <button class="btn-secondary" onclick="goBack()">Back to Chat</button>
+    </div>
+
+    <div class="chat-type">
+        <h2>Private Chat</h2>
+        <form id="private-chat-form">
+            <div class="form-group">
+                <label for="private-user-select">Select User:</label>
+                <select id="private-user-select" required>
+                    <option value="">Choose a user...</option>
+                </select>
+                <div class="error" id="private-error"></div>
+            </div>
+            <button type="submit" class="btn-primary">Create Private Chat</button>
+        </form>
+        <div class="success" id="private-success"></div>
+    </div>
+
+    <div class="chat-type">
+        <h2>Group Chat</h2>
+        <form id="group-chat-form">
+            <div class="form-group">
+                <label for="group-name">Group Name:</label>
+                <input type="text" id="group-name" placeholder="Enter group name..." required>
+            </div>
+            <div class="form-group">
+                <label>Select Users:</label>
+                <div class="user-list" id="user-list">
+                    <!-- Users will be populated here -->
+                </div>
+                <div class="error" id="group-error"></div>
+            </div>
+            <button type="submit" class="btn-primary">Create Group Chat</button>
+        </form>
+        <div class="success" id="group-success"></div>
+    </div>
+</div>
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+<script type="text/javascript">
+const token = localStorage.getItem('jwt');
+const username = localStorage.getItem('username');
+
+if (!token || !username) {
+    window.location.href = '/';
+}
+
+function goBack() {
+    window.location.href = '/chat';
+}
+
+function showError(elementId, message) {
+    document.getElementById(elementId).textContent = message;
+    setTimeout(() => {
+        document.getElementById(elementId).textContent = '';
+    }, 5000);
+}
+
+function showSuccess(elementId, message) {
+    document.getElementById(elementId).textContent = message;
+    setTimeout(() => {
+        document.getElementById(elementId).textContent = '';
+    }, 3000);
+}
+
+function fetchUsers() {
+    fetch('/api/users', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to fetch users');
+        return response.json();
+    })
+    .then(users => {
+        const privateSelect = $('#private-user-select');
+        const userList = $('#user-list');
+        
+        // Populate private chat dropdown
+        privateSelect.empty();
+        privateSelect.append($('<option>', { value: '', text: 'Choose a user...' }));
+        
+        // Populate group chat user list
+        userList.empty();
+        
+        users.forEach(user => {
+            if (user !== username) {
+                // Add to private chat dropdown
+                privateSelect.append($('<option>', {
+                    value: user,
+                    text: user
+                }));
+                
+                // Add to group chat checkboxes
+                userList.append(`
+                    <div class="user-checkbox">
+                        <input type="checkbox" id="user-${user}" value="${user}">
+                        <label for="user-${user}">${user}</label>
+                    </div>
+                `);
+            }
+        });
+    })
+    .catch(error => {
+        console.error('Error fetching users:', error);
+        showError('private-error', 'Failed to load users');
+    });
+}
+
+$('#private-chat-form').on('submit', function(e) {
+    e.preventDefault();
+    
+    const otherUsername = $('#private-user-select').val();
+    if (!otherUsername) {
+        showError('private-error', 'Please select a user');
+        return;
+    }
+    
+    // First get the user ID from username
+    fetch('/api/users', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(response => response.json())
+    .then(users => {
+        // For simplicity, assuming usernames are unique and we can use them as IDs
+        // In a real app, you'd need an endpoint to get user ID by username
+        const otherUserId = users.indexOf(otherUsername) + 1; // Simple ID mapping
+        
+        return fetch(`/api/chats/private?otherUserId=${otherUserId}`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to create private chat');
+        return response.json();
+    })
+    .then(chat => {
+        showSuccess('private-success', 'Private chat created successfully!');
+        $('#private-chat-form')[0].reset();
+    })
+    .catch(error => {
+        console.error('Error creating private chat:', error);
+        showError('private-error', 'Failed to create private chat');
+    });
+});
+
+$('#group-chat-form').on('submit', function(e) {
+    e.preventDefault();
+    
+    const groupName = $('#group-name').val().trim();
+    if (!groupName) {
+        showError('group-error', 'Please enter a group name');
+        return;
+    }
+    
+    const selectedUsers = [];
+    $('#user-list input:checked').each(function() {
+        selectedUsers.push($(this).val());
+    });
+    
+    if (selectedUsers.length === 0) {
+        showError('group-error', 'Please select at least one user');
+        return;
+    }
+    
+    const params = new URLSearchParams();
+    params.append('chatName', groupName);
+    selectedUsers.forEach(user => params.append('usernames', user));
+    
+    fetch(`/api/chats/group?${params.toString()}`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to create group chat');
+        return response.json();
+    })
+    .then(chat => {
+        showSuccess('group-success', 'Group chat created successfully!');
+        $('#group-chat-form')[0].reset();
+        $('#user-list input:checked').prop('checked', false);
+    })
+    .catch(error => {
+        console.error('Error creating group chat:', error);
+        showError('group-error', 'Failed to create group chat');
+    });
+});
+
+// Load users when page loads
+$(document).ready(function() {
+    fetchUsers();
+});
+</script>
+</body>
+</html>
