@@ -24,6 +24,11 @@
     .chat-participants { font-size: 0.8em; color: #666; }
     .new-chat-section { margin-bottom: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
     #current-chat-info { padding: 10px; background-color: #f0f0f0; border-bottom: 1px solid #ccc; font-weight: bold; }
+    .message-timestamp {
+        font-size: 0.7em;
+        color: #999;
+        margin-top: 2px;
+    }
 </style>
 </head>
 <body>
@@ -70,6 +75,7 @@ const userId = localStorage.getItem('userId');
 let currentChatId = null;
 let userChats = [];
 let allUsers = [];
+let stompSubscription = null;
 
 if (!token || !username) {
     window.location.href = '/';
@@ -86,10 +92,7 @@ const headers = {
 
 mystomp.connect(headers, onConnect, onError);
 
-function onConnect(){
-    mystomp.subscribe("/topic/"+'1'+"/reply", onMessageReceived);
-    console.log(username+" is username --------")
-    mystomp.send("/app/chat.subscribe",{}, '1');
+function onConnect() {
     fetchUsers();
     fetchUserChats();
     fetchOnlineUsers();
@@ -97,14 +100,21 @@ function onConnect(){
 }
 
 function displayMessage(msg) {
-    const messagesDisplay = $("#messages-display");
-    const messageClass = msg.sender.username === username ? 'sent' : 'received';
-    const senderName = msg.sender.username === username ? 'You' : msg.sender.username;
-    const markup = `<div class="message ${messageClass}">
-                        <div class="message-sender">${senderName}</div>
-                        <div>${msg.contentText}</div>
-                    </div>`;
-    messagesDisplay.append(markup);
+    const time = msg.timestamp 
+        ? new Date(msg.timestamp).toLocaleTimeString() 
+        : '';
+    const senderName = msg.sender.username 
+        ? (msg.sender.username === username ? 'You' : msg.sender.username)
+        : (msg.sender == userId ? 'You' : msg.sender);
+    const cls = (msg.sender.username === username || msg.sender == userId) 
+        ? 'sent' : 'received';
+    $('#messages-display').append(`
+        <div class="message ${cls}">
+            <div class="message-sender">${senderName}</div>
+            <div>${msg.contentText || msg.content}</div>
+            <div class="message-timestamp">${time}</div>
+        </div>
+    `);
     $('#messages').scrollTop($('#messages')[0].scrollHeight);
 }
 
@@ -124,7 +134,7 @@ function onMessageReceived(payload){
     const msg = JSON.parse(payload.body);
     // Display message only if it's part of the current chat
     if (currentChatId && msg.receiver == currentChatId) {
-        displayInstantMessage(msg);
+        displayMessage(msg);
     }
     // Refresh chat list to show updated last message
     fetchUserChats();
@@ -214,6 +224,10 @@ function displayChats(chats) {
 }
 
 function selectChat(chatId, chatName) {
+    // désabonnement de l'ancien topic
+    if (stompSubscription) stompSubscription.unsubscribe();
+    // souscription au nouveau topic
+    stompSubscription = mystomp.subscribe('/topic/' + chatId + '/reply', onMessageReceived);
     currentChatId = chatId;
     $('.chat-item').removeClass('active');
     $(`.chat-item[data-chat-id="${chatId}"]`).addClass('active');
