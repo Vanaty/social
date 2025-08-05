@@ -29,10 +29,8 @@ public class UserController {
     private OnlineUserRepository onlineUserRepository;
 
     @GetMapping
-    public List<String> getAllUsers() {
-        return userRepository.findAll().stream()
-                .map(User::getUsername)
-                .collect(Collectors.toList());
+    public List<User> getAllUsers() {
+        return userRepository.findAll();
     }
 
     @GetMapping("/info")
