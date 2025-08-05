@@ -59,7 +59,8 @@ public class JwtUtil {
 
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("user", userRepository.findUserByUsername(userDetails.getUsername()).orElse(new User()));
+        User user = userRepository.findUserByUsername(userDetails.getUsername()).orElseThrow(() -> new RuntimeException("User not found for token generation"));
+        claims.put("user", user);
         return createToken(claims, userDetails.getUsername());
     }
 

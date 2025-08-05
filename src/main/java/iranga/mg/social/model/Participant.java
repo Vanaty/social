@@ -2,8 +2,7 @@ package iranga.mg.social.model;
 
 import java.time.LocalDateTime;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -24,15 +23,20 @@ public class Participant {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "chat_id", nullable = false)
-    @JsonIgnore
     private Chat chat;
 
-    private Boolean isNotifActive = true;
+    @Column(nullable = false)
     private LocalDateTime joinedAt = LocalDateTime.now();
+
+    @Column(nullable = false)
+    private Boolean isNotifActive = true;
+
+    @Column(nullable = false)
+    private Boolean isAdmin = false;
 }

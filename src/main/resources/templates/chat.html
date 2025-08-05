@@ -31,9 +31,7 @@
     Welcome <h2 id="username"></h2>
     
     <div class="new-chat-section">
-        <label for="user-select">Start new chat with:</label>
-        <select id="user-select"></select>
-        <button onclick="createPrivateChat()" style="margin-top: 5px; padding: 5px 10px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; width: 100%;">Start Chat</button>
+        <button onclick="goToCreateChat()" style="margin-top: 5px; padding: 5px 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; width: 100%;">Create New Chat</button>
     </div>
     
     <h3>Your Chats:</h3>
@@ -64,243 +62,310 @@
 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.4.0/sockjs.min.js"></script>
 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
 <script type="text/javascript">
-const token = localStorage.getItem('jwt');
-const username = localStorage.getItem('username');
-const userId = localStorage.getItem('userId');
-let currentChatId = null;
-let userChats = [];
-let allUsers = [];
+'use strict';
 
-if (!token || !username) {
-    window.location.href = '/';
-}
-
-document.getElementById('username').textContent = username;
-
-var mysockjs = new SockJS("/stomp");
-var mystomp = Stomp.over(mysockjs);
-
-const headers = {
-    'Authorization': 'Bearer ' + token
-};
-
-mystomp.connect(headers, onConnect, onError);
-
-function onConnect(){
-    mystomp.subscribe("/topic/"+'1'+"/reply", onMessageReceived);
-    console.log(username+" is username --------")
-    mystomp.send("/app/chat.subscribe",{}, '1');
-    fetchUsers();
-    fetchUserChats();
-    fetchOnlineUsers();
-    setInterval(fetchOnlineUsers, 10000);
-}
-
-function displayMessage(msg) {
-    const messagesDisplay = $("#messages-display");
-    const messageClass = msg.sender.username === username ? 'sent' : 'received';
-    const senderName = msg.sender.username === username ? 'You' : msg.sender.username;
-    const markup = `<div class="message ${messageClass}">
-                        <div class="message-sender">${senderName}</div>
-                        <div>${msg.contentText}</div>
-                    </div>`;
-    messagesDisplay.append(markup);
-    $('#messages').scrollTop($('#messages')[0].scrollHeight);
-}
-
-function displayInstantMessage(msg) {
-    const messagesDisplay = $("#messages-display");
-    const messageClass = msg.sender == userId ? 'sent' : 'received';
-    const senderName = msg.sender == userId ? 'You' : msg.sender;
-    const markup = `<div class="message ${messageClass}">
-                        <div class="message-sender">${senderName}</div>
-                        <div>${msg.content}</div>
-                    </div>`;
-    messagesDisplay.append(markup);
-    $('#messages').scrollTop($('#messages')[0].scrollHeight);
-}
-
-function onMessageReceived(payload){
-    const msg = JSON.parse(payload.body);
-    // Display message only if it's part of the current chat
-    if (currentChatId && msg.receiver == currentChatId) {
-        displayInstantMessage(msg);
+class ChatApplication {
+    constructor() {
+        this.token = localStorage.getItem('jwt');
+        this.username = localStorage.getItem('username');
+        this.userId = localStorage.getItem('userId');
+        this.currentChatId = null;
+        this.userChats = [];
+        this.allUsers = [];
+        this.socket = null;
+        this.stompClient = null;
+        
+        this.init();
     }
-    // Refresh chat list to show updated last message
-    fetchUserChats();
-}
 
-function onError(error){
-    console.log("error", error);
-    if (error.headers && error.headers.message && error.headers.message.includes("Access is denied")) {
-        localStorage.removeItem('jwt');
-        localStorage.removeItem('username');
-        window.location.href = '/';
+    init() {
+        if (!this.token || !this.username) {
+            window.location.href = '/';
+            return;
+        }
+        
+        document.getElementById('username').textContent = this.username;
+        this.bindEvents();
+        this.connectWebSocket();
     }
-}
 
-$("#send").on("click", function(){
-    if (!currentChatId) {
-        alert("Please select a chat first.");
-        return;
-    }
-    const content = $("#text").val();
-    if (content.trim() === '') return;
-
-    const message = {sender:userId, receiver:currentChatId, content: content};
-    mystomp.send("/app/chat.message",{}, JSON.stringify(message));
-    $("#text").val('');
-});
-
-function fetchUsers() {
-    fetch('/api/users', {
-        headers: { 'Authorization': 'Bearer ' + token }
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to fetch users');
-        return response.json();
-    })
-    .then(users => {
-        allUsers = users;
-        const select = $('#user-select');
-        select.empty();
-        select.append($('<option>', { value: '', text: 'Select a user', disabled: true, selected: true }));
-        users.forEach(u => {
-            if (u !== username) {
-                select.append($('<option>', {
-                    value: u,
-                    text: u
-                }));
+    bindEvents() {
+        const sendButton = document.getElementById('send');
+        const textArea = document.getElementById('text');
+        
+        sendButton?.addEventListener('click', () => this.sendMessage());
+        textArea?.addEventListener('keypress', (e) => {
+            if (e.which === 13 && !e.shiftKey) {
+                e.preventDefault();
+                this.sendMessage();
             }
         });
-    })
-    .catch(error => console.error('Error fetching users:', error));
-}
-
-function fetchUserChats() {
-    fetch('/api/chats', {
-        headers: { 'Authorization': 'Bearer ' + token }
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to fetch chats');
-        return response.json();
-    })
-    .then(chats => {
-        userChats = chats;
-        displayChats(chats);
-    })
-    .catch(error => console.error('Error fetching chats:', error));
-}
-
-function displayChats(chats) {
-    const chatsList = $('#chats-list');
-    chatsList.empty();
-    
-    chats.forEach(chat => {
-        const participants = chat.participants.map(p => p.user.username).filter(u => u !== username);
-        const chatName = chat.isGroupChat ? chat.chatName : participants.join(', ');
-        const participantsText = chat.isGroupChat ? `${chat.participants.length} members` : 'Private chat';
-        
-        const chatItem = $(`
-            <div class="chat-item" data-chat-id="${chat.id}">
-                <div class="chat-name">${chatName}</div>
-                <div class="chat-participants">${participantsText}</div>
-            </div>
-        `);
-        
-        chatItem.on('click', () => selectChat(chat.id, chatName));
-        chatsList.append(chatItem);
-    });
-}
-
-function selectChat(chatId, chatName) {
-    currentChatId = chatId;
-    $('.chat-item').removeClass('active');
-    $(`.chat-item[data-chat-id="${chatId}"]`).addClass('active');
-    
-    $('#current-chat-info').text(`Chat: ${chatName}`);
-    $('#text').prop('disabled', false).attr('placeholder', 'Type your message...');
-    $('#send').prop('disabled', false);
-    
-    fetchChatMessages(chatId);
-}
-
-function fetchChatMessages(chatId) {
-    $("#messages-display").empty();
-    fetch(`/api/chats/${chatId}/messages`, {
-        headers: { 'Authorization': 'Bearer ' + token }
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to fetch messages');
-        return response.json();
-    })
-    .then(messages => {
-        messages.forEach(msg => displayMessage(msg));
-    })
-    .catch(error => console.error('Error fetching messages:', error));
-}
-
-function createPrivateChat() {
-    const selectedUser = $('#user-select').val();
-    if (!selectedUser) {
-        alert('Please select a user to chat with.');
-        return;
     }
-    
-    // Find user ID (assuming we need to fetch user details)
-    // For now, we'll use username as placeholder - you may need to modify based on actual API
-    const chatData = {
-        chatType: 'PRIVATE',
-        participants: [selectedUser] // Adjust based on API requirements
-    };
-    
-    fetch('/api/chats/private', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
-        },
-        body: JSON.stringify(chatData)
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to create chat');
-        return response.json();
-    })
-    .then(chat => {
-        fetchUserChats(); // Refresh chat list
-        selectChat(chat.id, chat.isGroupChat ? chat.chatName : selectedUser);
-        $('#user-select').val('');
-    })
-    .catch(error => {
-        console.error('Error creating chat:', error);
-        alert('Failed to create chat. Maybe you already have a chat with this user?');
-    });
-}
 
-function fetchOnlineUsers() {
-    fetch('/api/users/online', {
-        headers: { 'Authorization': 'Bearer ' + token }
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to fetch online users');
-        return response.json();
-    })
-    .then(onlineUsers => {
-        const onlineUsersDiv = $('#online_users');
-        onlineUsersDiv.empty();
-        onlineUsers.forEach(u => {
-            onlineUsersDiv.append(`<div>${u}</div>`);
+    connectWebSocket() {
+        try {
+            this.socket = new SockJS("/stomp");
+            this.stompClient = Stomp.over(this.socket);
+            
+            const headers = { 'Authorization': `Bearer ${this.token}` };
+            
+            this.stompClient.connect(headers, 
+                () => this.onConnect(), 
+                (error) => this.onError(error)
+            );
+        } catch (error) {
+            console.error('WebSocket connection failed:', error);
+        }
+    }
+
+    onConnect() {
+        console.log('WebSocket connected successfully');
+        
+        this.stompClient.subscribe("/topic/1/reply", 
+            (payload) => this.onMessageReceived(payload)
+        );
+        
+        this.stompClient.send("/app/chat.subscribe", {}, '1');
+        
+        // Initialize data
+        Promise.all([
+            this.fetchUsers(),
+            this.fetchUserChats(),
+            this.fetchOnlineUsers()
+        ]).catch(error => console.error('Initialization error:', error));
+        
+        // Setup periodic updates
+        setInterval(() => this.fetchOnlineUsers(), 15000);
+    }
+
+    onError(error) {
+        console.error('WebSocket error:', error);
+        
+        if (error.headers?.message?.includes("Access is denied")) {
+            localStorage.clear();
+            window.location.href = '/';
+        }
+    }
+
+    async fetchUsers() {
+        try {
+            const response = await this.fetchWithAuth('/api/users');
+            this.allUsers = response;
+        } catch (error) {
+            console.error('Error fetching users:', error);
+        }
+    }
+
+    async fetchUserChats() {
+        try {
+            const chats = await this.fetchWithAuth('/api/chats');
+            this.userChats = chats;
+            this.displayChats(chats);
+        } catch (error) {
+            console.error('Error fetching chats:', error);
+        }
+    }
+
+    async fetchOnlineUsers() {
+        try {
+            const onlineUsers = await this.fetchWithAuth('/api/users/online');
+            this.displayOnlineUsers(onlineUsers);
+        } catch (error) {
+            console.error('Error fetching online users:', error);
+        }
+    }
+
+    async fetchWithAuth(url) {
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${this.token}` }
         });
-    })
-    .catch(error => console.error('Error fetching online users:', error));
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        return response.json();
+    }
+
+    displayChats(chats) {
+        const chatsList = document.getElementById('chats-list');
+        if (!chatsList) return;
+        
+        chatsList.innerHTML = '';
+        
+        chats.forEach(chat => {
+            const participants = chat.participants
+                ?.map(p => p.user?.username)
+                ?.filter(u => u !== this.username) || [];
+            
+            const chatName = chat.isGroupChat ? chat.chatName : participants.join(', ');
+            const participantsText = chat.isGroupChat 
+                ? `${chat.participants?.length || 0} members` 
+                : 'Private chat';
+            
+            const chatElement = this.createChatElement(chat.id, chatName, participantsText);
+            chatsList.appendChild(chatElement);
+        });
+    }
+
+    createChatElement(chatId, chatName, participantsText) {
+        const div = document.createElement('div');
+        div.className = 'chat-item';
+        div.dataset.chatId = chatId;
+        div.innerHTML = `
+            <div class="chat-name">${this.escapeHtml(chatName)}</div>
+            <div class="chat-participants">${this.escapeHtml(participantsText)}</div>
+        `;
+        
+        div.addEventListener('click', () => this.selectChat(chatId, chatName));
+        return div;
+    }
+
+    selectChat(chatId, chatName) {
+        this.currentChatId = chatId;
+        
+        // Update UI
+        document.querySelectorAll('.chat-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        
+        const selectedChat = document.querySelector(`[data-chat-id="${chatId}"]`);
+        selectedChat?.classList.add('active');
+        
+        document.getElementById('current-chat-info').textContent = `Chat: ${chatName}`;
+        
+        const textArea = document.getElementById('text');
+        const sendButton = document.getElementById('send');
+        
+        textArea.disabled = false;
+        textArea.placeholder = 'Type your message...';
+        sendButton.disabled = false;
+        
+        this.fetchChatMessages(chatId);
+    }
+
+    async fetchChatMessages(chatId) {
+        try {
+            const messagesDisplay = document.getElementById('messages-display');
+            if (messagesDisplay) messagesDisplay.innerHTML = '';
+            
+            const messages = await this.fetchWithAuth(`/api/chats/${chatId}/messages`);
+            messages.forEach(msg => this.displayMessage(msg));
+        } catch (error) {
+            console.error('Error fetching messages:', error);
+        }
+    }
+
+    displayMessage(msg) {
+        const messagesDisplay = document.getElementById('messages-display');
+        if (!messagesDisplay) return;
+        
+        const messageClass = msg.sender?.username === this.username ? 'sent' : 'received';
+        const senderName = msg.sender?.username === this.username ? 'You' : msg.sender?.username;
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${messageClass}`;
+        messageDiv.innerHTML = `
+            <div class="message-sender">${this.escapeHtml(senderName)}</div>
+            <div>${this.escapeHtml(msg.contentText)}</div>
+        `;
+        
+        messagesDisplay.appendChild(messageDiv);
+        this.scrollToBottom();
+    }
+
+    displayInstantMessage(msg) {
+        const messagesDisplay = document.getElementById('messages-display');
+        if (!messagesDisplay) return;
+        
+        const messageClass = msg.sender == this.userId ? 'sent' : 'received';
+        const senderName = msg.sender == this.userId ? 'You' : msg.sender;
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${messageClass}`;
+        messageDiv.innerHTML = `
+            <div class="message-sender">${this.escapeHtml(senderName)}</div>
+            <div>${this.escapeHtml(msg.content)}</div>
+        `;
+        
+        messagesDisplay.appendChild(messageDiv);
+        this.scrollToBottom();
+    }
+
+    onMessageReceived(payload) {
+        try {
+            const msg = JSON.parse(payload.body);
+            
+            if (this.currentChatId && msg.receiver == this.currentChatId) {
+                this.displayInstantMessage(msg);
+            }
+            
+            // Refresh chat list
+            this.fetchUserChats();
+        } catch (error) {
+            console.error('Error processing received message:', error);
+        }
+    }
+
+    sendMessage() {
+        if (!this.currentChatId) {
+            alert("Please select a chat first.");
+            return;
+        }
+        
+        const textArea = document.getElementById('text');
+        const content = textArea.value.trim();
+        
+        if (!content) return;
+        
+        const message = {
+            sender: this.userId,
+            receiver: this.currentChatId,
+            content: content
+        };
+        
+        try {
+            this.stompClient.send("/app/chat.message", {}, JSON.stringify(message));
+            textArea.value = '';
+        } catch (error) {
+            console.error('Error sending message:', error);
+            alert('Failed to send message. Please try again.');
+        }
+    }
+
+    displayOnlineUsers(onlineUsers) {
+        const onlineUsersDiv = document.getElementById('online_users');
+        if (!onlineUsersDiv) return;
+        
+        onlineUsersDiv.innerHTML = '';
+        onlineUsers.forEach(user => {
+            const userDiv = document.createElement('div');
+            userDiv.textContent = user;
+            onlineUsersDiv.appendChild(userDiv);
+        });
+    }
+
+    scrollToBottom() {
+        const messagesContainer = document.getElementById('messages');
+        if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 }
 
-// Enable sending message with Enter key
-$('#text').on('keypress', function(e) {
-    if (e.which === 13 && !e.shiftKey) {
-        e.preventDefault();
-        $('#send').click();
-    }
+function goToCreateChat() {
+    window.location.href = '/create-chat';
+}
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    new ChatApplication();
 });
 </script>
 </body>

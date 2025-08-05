@@ -1,5 +1,6 @@
 package iranga.mg.social.security;
 
+import iranga.mg.social.auth.UserPrincipale;
 import iranga.mg.social.model.User;
 import iranga.mg.social.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,6 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepository.findUserByUsername(username).orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
-        return new org.springframework.security.core.userdetails.User(user.getUsername(), user.getPassword(), new ArrayList<>());
+        return new UserPrincipale(user);
     }
 }

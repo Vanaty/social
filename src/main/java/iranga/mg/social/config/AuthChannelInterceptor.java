@@ -1,5 +1,8 @@
 package iranga.mg.social.config;
 
+import java.nio.file.attribute.UserPrincipal;
+
+import org.apache.catalina.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,7 +49,7 @@ public class AuthChannelInterceptor implements ChannelInterceptor {
                         UserDetails userDetails = userDetailsService.loadUserByUsername(username);
                         if (jwtUtil.validateToken(jwt, userDetails)) {
                             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                                    userDetails, null, userDetails.getAuthorities());
+                                     userDetails, null, userDetails.getAuthorities());
                             accessor.setUser(authentication);
                         }
                     }

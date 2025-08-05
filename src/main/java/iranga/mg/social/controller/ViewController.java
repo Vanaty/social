@@ -51,4 +51,9 @@ public class ViewController {
 		return mav;
 	}
 
+	@GetMapping("/create-chat")
+	public String createChatView() {
+		return "create-chat.html";
+	}
+
 }

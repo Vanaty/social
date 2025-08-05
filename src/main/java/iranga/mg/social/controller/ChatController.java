@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -45,31 +46,54 @@ public class ChatController {
     @Autowired
     private MessageRepository messageRepository;
     @PostMapping("/private")
-    @Operation(summary = "Create a private chat with another user")
-    public ResponseEntity<Chat> createPrivateChat(@Valid @RequestBody ChatDTO chatReq, @AuthenticationPrincipal UserDetails userDetails) {
-        User currentUser = userRepository.findUserByUsername(userDetails.getUsername()).orElse(null);
-        User otherUser = userRepository.findById(chatReq.getParticipants().get(0)).orElse(null);
+    @Operation(summary = "Create a private chat by username")
+    public ResponseEntity<?> createPrivateChatByUsername(
+            @RequestParam String otherUsername,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            User currentUser = userRepository.findUserByUsername(userDetails.getUsername())
+                    .orElseThrow(() -> new RuntimeException("Current user not found"));
+            
+            User otherUser = userRepository.findUserByUsername(otherUsername)
+                    .orElseThrow(() -> new RuntimeException("User not found: " + otherUsername));
 
-        if (currentUser == null || otherUser == null) {
-            return ResponseEntity.badRequest().build();
+            if (currentUser.getId().equals(otherUser.getId())) {
+                return ResponseEntity.badRequest().body("Cannot create chat with yourself");
+            }
+
+            List<User> participants = List.of(currentUser, otherUser);
+            Chat chat = chatService.createPrivateChat(participants);
+            return ResponseEntity.ok(chat);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to create chat: " + e.getMessage());
         }
-        Set<User> participants = new HashSet<>();
-        participants.add(currentUser);
-        participants.add(otherUser);
-        Chat chat = chatService.createPrivateChat(participants.stream().toList());
-        return ResponseEntity.ok(chat);
     }
 
     @PostMapping("/group")
-    @Operation(summary = "Create a group chat with multiple users")
-    public ResponseEntity<Chat> createGroupChat(@Valid @RequestBody ChatDTO chatDto, @AuthenticationPrincipal UserDetails userDetails) {
-        User currentUser = userRepository.findUserByUsername(userDetails.getUsername()).orElse(null);
-        if (currentUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    @Operation(summary = "Create a group chat")
+    public ResponseEntity<?> createGroupChatByUsernames(
+            @RequestParam String chatName,
+            @RequestParam List<String> usernames,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            User currentUser = userRepository.findUserByUsername(userDetails.getUsername())
+                    .orElseThrow(() -> new RuntimeException("Current user not found"));
 
-        Set<User> participants = new HashSet<>();
-        userRepository.findAllByIdIn(chatDto.getParticipants()).forEach(participants::add);
+            List<User> participants = usernames.stream()
+                    .map(username -> userRepository.findUserByUsername(username)
+                            .orElseThrow(() -> new RuntimeException("User not found: " + username)))
+                    .filter(user -> !user.getId().equals(currentUser.getId()))
+                    .toList();
 
-        return ResponseEntity.ok(chatService.createGroupChat(chatDto.getChatName(), currentUser, participants.stream().toList()));
+            if (participants.isEmpty()) {
+                return ResponseEntity.badRequest().body("At least one other user is required");
+            }
+
+            Chat chat = chatService.createGroupChat(chatName, currentUser, participants);
+            return ResponseEntity.ok(chat);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to create group chat: " + e.getMessage());
+        }
     }
 
     @GetMapping
@@ -83,7 +107,21 @@ public class ChatController {
 
     @GetMapping("/{chatId}/messages")
     @Operation(summary = "Get all messages in a chat")
-    public ResponseEntity<List<Message>> getChatMessages(@PathVariable Long chatId) {
-        return ResponseEntity.ok(messageRepository.findByChatIdOrderByTimestampAsc(chatId));
+    public ResponseEntity<?> getChatMessages(
+            @PathVariable Long chatId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            User currentUser = userRepository.findUserByUsername(userDetails.getUsername())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // Verify user is participant in this chat
+            Chat chat = chatRepository.findByIdAndParticipant(chatId, currentUser)
+                    .orElseThrow(() -> new RuntimeException("Chat not found or access denied"));
+
+            List<Message> messages = messageRepository.findByChatIdOrderByTimestampAsc(chatId);
+            return ResponseEntity.ok(messages);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied: " + e.getMessage());
+        }
     }
 }

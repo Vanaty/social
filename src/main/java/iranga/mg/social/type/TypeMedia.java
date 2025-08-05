@@ -1,7 +1,11 @@
 package iranga.mg.social.type;
 
 public enum TypeMedia {
-    IMAGE, VIDEO, AUDIO, FILE;
+    IMAGE,
+    VIDEO,
+    AUDIO,
+    FILE,
+    DOCUMENT;
 
     public static TypeMedia fromString(String type) {
         try {

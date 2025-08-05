@@ -67,157 +67,181 @@
 
 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
 <script type="text/javascript">
-const token = localStorage.getItem('jwt');
-const username = localStorage.getItem('username');
+'use strict';
 
-if (!token || !username) {
-    window.location.href = '/';
+class ChatCreator {
+    constructor() {
+        this.token = localStorage.getItem('jwt');
+        this.username = localStorage.getItem('username');
+        this.init();
+    }
+
+    init() {
+        if (!this.token || !this.username) {
+            window.location.href = '/';
+            return;
+        }
+        this.bindEvents();
+        this.fetchUsers();
+    }
+
+    bindEvents() {
+        const privateForm = document.getElementById('private-chat-form');
+        const groupForm = document.getElementById('group-chat-form');
+
+        if (privateForm) {
+            privateForm.addEventListener('submit', this.handlePrivateChatSubmit.bind(this));
+        }
+        if (groupForm) {
+            groupForm.addEventListener('submit', this.handleGroupChatSubmit.bind(this));
+        }
+    }
+
+    async fetchUsers() {
+        try {
+            const response = await fetch('/api/users', {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch users');
+            }
+
+            const users = await response.json();
+            this.populateUserSelectors(users);
+        } catch (error) {
+            console.error('Error fetching users:', error);
+            this.showError('private-error', 'Failed to load users');
+        }
+    }
+
+    populateUserSelectors(users) {
+        const privateSelect = document.getElementById('private-user-select');
+        const userList = document.getElementById('user-list');
+        
+        // Clear existing options
+        privateSelect.innerHTML = '<option value="">Choose a user...</option>';
+        userList.innerHTML = '';
+        
+        users.filter(user => user !== this.username)
+             .forEach(user => {
+                 // Private chat dropdown
+                 const option = document.createElement('option');
+                 option.value = user;
+                 option.textContent = user;
+                 privateSelect.appendChild(option);
+                 
+                 // Group chat checkboxes
+                 const div = document.createElement('div');
+                 div.className = 'user-checkbox';
+                 div.innerHTML = `
+                     <input type="checkbox" id="user-${user}" value="${user}">
+                     <label for="user-${user}">${user}</label>
+                 `;
+                 userList.appendChild(div);
+             });
+    }
+
+    async handlePrivateChatSubmit(event) {
+        event.preventDefault();
+        
+        const otherUsername = document.getElementById('private-user-select').value;
+        if (!otherUsername) {
+            this.showError('private-error', 'Please select a user');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/chats/private?otherUsername=${encodeURIComponent(otherUsername)}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText);
+            }
+
+            this.showSuccess('private-success', 'Private chat created successfully!');
+            document.getElementById('private-chat-form').reset();
+            
+            // Redirect to chat after delay
+            setTimeout(() => window.location.href = '/chat', 2000);
+        } catch (error) {
+            console.error('Error creating private chat:', error);
+            this.showError('private-error', `Failed to create private chat: ${error.message}`);
+        }
+    }
+
+    async handleGroupChatSubmit(event) {
+        event.preventDefault();
+        
+        const groupName = document.getElementById('group-name').value.trim();
+        if (!groupName) {
+            this.showError('group-error', 'Please enter a group name');
+            return;
+        }
+        
+        const selectedUsers = Array.from(document.querySelectorAll('#user-list input:checked'))
+                                  .map(input => input.value);
+        
+        if (selectedUsers.length === 0) {
+            this.showError('group-error', 'Please select at least one user');
+            return;
+        }
+
+        try {
+            const params = new URLSearchParams();
+            params.append('chatName', groupName);
+            selectedUsers.forEach(user => params.append('usernames', user));
+            
+            const response = await fetch(`/api/chats/group?${params.toString()}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText);
+            }
+
+            this.showSuccess('group-success', 'Group chat created successfully!');
+            document.getElementById('group-chat-form').reset();
+            document.querySelectorAll('#user-list input:checked')
+                   .forEach(input => input.checked = false);
+            
+            // Redirect to chat after delay
+            setTimeout(() => window.location.href = '/chat', 2000);
+        } catch (error) {
+            console.error('Error creating group chat:', error);
+            this.showError('group-error', `Failed to create group chat: ${error.message}`);
+        }
+    }
+
+    showError(elementId, message) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.textContent = message;
+            setTimeout(() => element.textContent = '', 5000);
+        }
+    }
+
+    showSuccess(elementId, message) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.textContent = message;
+            setTimeout(() => element.textContent = '', 3000);
+        }
+    }
 }
 
 function goBack() {
     window.location.href = '/chat';
 }
 
-function showError(elementId, message) {
-    document.getElementById(elementId).textContent = message;
-    setTimeout(() => {
-        document.getElementById(elementId).textContent = '';
-    }, 5000);
-}
-
-function showSuccess(elementId, message) {
-    document.getElementById(elementId).textContent = message;
-    setTimeout(() => {
-        document.getElementById(elementId).textContent = '';
-    }, 3000);
-}
-
-function fetchUsers() {
-    fetch('/api/users', {
-        headers: { 'Authorization': 'Bearer ' + token }
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to fetch users');
-        return response.json();
-    })
-    .then(users => {
-        const privateSelect = $('#private-user-select');
-        const userList = $('#user-list');
-        
-        // Populate private chat dropdown
-        privateSelect.empty();
-        privateSelect.append($('<option>', { value: '', text: 'Choose a user...' }));
-        
-        // Populate group chat user list
-        userList.empty();
-        
-        users.forEach(user => {
-            if (user !== username) {
-                // Add to private chat dropdown
-                privateSelect.append($('<option>', {
-                    value: user,
-                    text: user
-                }));
-                
-                // Add to group chat checkboxes
-                userList.append(`
-                    <div class="user-checkbox">
-                        <input type="checkbox" id="user-${user}" value="${user}">
-                        <label for="user-${user}">${user}</label>
-                    </div>
-                `);
-            }
-        });
-    })
-    .catch(error => {
-        console.error('Error fetching users:', error);
-        showError('private-error', 'Failed to load users');
-    });
-}
-
-$('#private-chat-form').on('submit', function(e) {
-    e.preventDefault();
-    
-    const otherUsername = $('#private-user-select').val();
-    if (!otherUsername) {
-        showError('private-error', 'Please select a user');
-        return;
-    }
-    
-    // First get the user ID from username
-    fetch('/api/users', {
-        headers: { 'Authorization': 'Bearer ' + token }
-    })
-    .then(response => response.json())
-    .then(users => {
-        // For simplicity, assuming usernames are unique and we can use them as IDs
-        // In a real app, you'd need an endpoint to get user ID by username
-        const otherUserId = users.indexOf(otherUsername) + 1; // Simple ID mapping
-        
-        return fetch(`/api/chats/private?otherUserId=${otherUserId}`, {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + token }
-        });
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to create private chat');
-        return response.json();
-    })
-    .then(chat => {
-        showSuccess('private-success', 'Private chat created successfully!');
-        $('#private-chat-form')[0].reset();
-    })
-    .catch(error => {
-        console.error('Error creating private chat:', error);
-        showError('private-error', 'Failed to create private chat');
-    });
-});
-
-$('#group-chat-form').on('submit', function(e) {
-    e.preventDefault();
-    
-    const groupName = $('#group-name').val().trim();
-    if (!groupName) {
-        showError('group-error', 'Please enter a group name');
-        return;
-    }
-    
-    const selectedUsers = [];
-    $('#user-list input:checked').each(function() {
-        selectedUsers.push($(this).val());
-    });
-    
-    if (selectedUsers.length === 0) {
-        showError('group-error', 'Please select at least one user');
-        return;
-    }
-    
-    const params = new URLSearchParams();
-    params.append('chatName', groupName);
-    selectedUsers.forEach(user => params.append('usernames', user));
-    
-    fetch(`/api/chats/group?${params.toString()}`, {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + token }
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to create group chat');
-        return response.json();
-    })
-    .then(chat => {
-        showSuccess('group-success', 'Group chat created successfully!');
-        $('#group-chat-form')[0].reset();
-        $('#user-list input:checked').prop('checked', false);
-    })
-    .catch(error => {
-        console.error('Error creating group chat:', error);
-        showError('group-error', 'Failed to create group chat');
-    });
-});
-
-// Load users when page loads
-$(document).ready(function() {
-    fetchUsers();
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    new ChatCreator();
 });
 </script>
 </body>
