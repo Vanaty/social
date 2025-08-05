@@ -104,13 +104,13 @@ class ChatApplication {
 
     connectWebSocket() {
         try {
-            this.socket = new SockJS("/stomp");
+            this.socket = new SockJS("/ws");
             this.stompClient = Stomp.over(this.socket);
             
             const headers = { 'Authorization': `Bearer ${this.token}` };
             
             this.stompClient.connect(headers, 
-                () => this.onConnect(), 
+                async () => await this.onConnect(), 
                 (error) => this.onError(error)
             );
         } catch (error) {
@@ -118,19 +118,20 @@ class ChatApplication {
         }
     }
 
-    onConnect() {
+    async onConnect() {
         console.log('WebSocket connected successfully');
+        await this.fetchUserChats();
+        for (const chat of this.userChats) {
+            this.stompClient.subscribe("/topic/chat/" + chat.id, 
+                (payload) => this.onMessageReceived(payload)
+            );
+        }
         
-        this.stompClient.subscribe("/topic/1/reply", 
-            (payload) => this.onMessageReceived(payload)
-        );
-        
-        this.stompClient.send("/app/chat.subscribe", {}, '1');
+        // this.stompClient.send("/app/chat.subscribe", {}, '1');
         
         // Initialize data
         Promise.all([
             this.fetchUsers(),
-            this.fetchUserChats(),
             this.fetchOnlineUsers()
         ]).catch(error => console.error('Initialization error:', error));
         
@@ -159,8 +160,8 @@ class ChatApplication {
     async fetchUserChats() {
         try {
             const chats = await this.fetchWithAuth('/api/chats');
-            this.userChats = chats;
-            this.displayChats(chats);
+            this.userChats = chats.content;
+            this.displayChats(this.userChats);
         } catch (error) {
             console.error('Error fetching chats:', error);
         }
@@ -249,7 +250,8 @@ class ChatApplication {
             const messagesDisplay = document.getElementById('messages-display');
             if (messagesDisplay) messagesDisplay.innerHTML = '';
             
-            const messages = await this.fetchWithAuth(`/api/chats/${chatId}/messages`);
+            let messages = await this.fetchWithAuth(`/api/chats/${chatId}/messages`);
+            messages = messages.content || messages;
             messages.forEach(msg => this.displayMessage(msg));
         } catch (error) {
             console.error('Error fetching messages:', error);
@@ -274,32 +276,13 @@ class ChatApplication {
         this.scrollToBottom();
     }
 
-    displayInstantMessage(msg) {
-        const messagesDisplay = document.getElementById('messages-display');
-        if (!messagesDisplay) return;
-        
-        const messageClass = msg.sender == this.userId ? 'sent' : 'received';
-        const senderName = msg.sender == this.userId ? 'You' : msg.sender;
-        
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${messageClass}`;
-        messageDiv.innerHTML = `
-            <div class="message-sender">${this.escapeHtml(senderName)}</div>
-            <div>${this.escapeHtml(msg.content)}</div>
-        `;
-        
-        messagesDisplay.appendChild(messageDiv);
-        this.scrollToBottom();
-    }
-
     onMessageReceived(payload) {
         try {
             const msg = JSON.parse(payload.body);
-            
-            if (this.currentChatId && msg.receiver == this.currentChatId) {
-                this.displayInstantMessage(msg);
+
+            if (this.currentChatId && msg.chat.id == this.currentChatId) {
+                this.displayMessage(msg);
             }
-            
             // Refresh chat list
             this.fetchUserChats();
         } catch (error) {

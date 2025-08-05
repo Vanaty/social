@@ -1,8 +1,5 @@
 package iranga.mg.social.config;
 
-import java.nio.file.attribute.UserPrincipal;
-
-import org.apache.catalina.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

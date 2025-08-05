@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,8 +42,8 @@ public class MessageService {
         messageProducer.sendChatMessage(instantMessage);
     }
     
-    public List<Message> getChatMessages(Long chatId) {
-        return messageRepository.findByChatIdOrderByTimestampAsc(chatId);
+    public Page<Message> getChatMessages(Long chatId, Pageable pageable) {
+        return messageRepository.findByChatIdOrderByTimestampAsc(chatId, pageable);
     }
     
     public Message saveMessage(User sender, Chat chat, String content) {
@@ -52,12 +54,6 @@ public class MessageService {
         message.setTimestamp(LocalDateTime.now());
         
         return messageRepository.save(message);
-    }
-    
-    @Transactional(readOnly = true)
-    public List<Message> getUnreadMessages(User user) {
-        // Implement logic to get unread messages for a user
-        return messageRepository.findByChatIdOrderByTimestampAsc(null); // Placeholder
     }
     
     public void markMessageAsRead(Long messageId, User user) {

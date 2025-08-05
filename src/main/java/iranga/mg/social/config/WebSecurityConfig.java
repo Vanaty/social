@@ -30,11 +30,11 @@ public class WebSecurityConfig {
 		http.csrf(csrf -> csrf.disable())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
-						.requestMatchers("/api/auth/**", "/registration","/disconnect", "/chat","/").permitAll()
+						.requestMatchers("/api/auth/**", "/registration","/disconnect", "/chat","/","create-chat").permitAll()
 						.requestMatchers("/v3/api-docs/**",
 										"/swagger-ui.html",
 										"/swagger-ui/**").permitAll()
-						.requestMatchers("/stomp/**").permitAll() // Allow handshake
+						.requestMatchers("/ws/**").permitAll() // Allow WebSocket connections
 						.anyRequest().authenticated()
 				);
 

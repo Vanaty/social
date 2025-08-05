@@ -1,5 +1,6 @@
 package iranga.mg.social.controller;
 
+import java.security.Principal;
 import java.time.LocalDateTime;
 
 import org.slf4j.Logger;
@@ -8,14 +9,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.RestController;
 
 import iranga.mg.social.messaging.MessageProducer;
 import iranga.mg.social.model.Chat;
 import iranga.mg.social.model.InstantChatMessage;
-import iranga.mg.social.model.Message;
 import iranga.mg.social.model.OnlineUser;
 import iranga.mg.social.model.User;
 import iranga.mg.social.repository.ChatRepository;
@@ -50,36 +50,16 @@ public class MessagingController {
     @Autowired
     private OnlineUserRepository onlineUserRepository;
 
-    @MessageMapping("/chat.subscribe")
-    public void subscribe(@Payload String chatId, @AuthenticationPrincipal UserDetails userDetails) {
-        try {
-            if (userDetails != null) {
-                String username = userDetails.getUsername();
-                logger.info("User {} subscribed to chat {}", username, chatId);
-                
-                // Add user to online users
-                OnlineUser onlineUser = onlineUserRepository.findByUsername(username);
-                if (onlineUser == null) {
-                    onlineUser = new OnlineUser();
-                    onlineUser.setUsername(username);
-                    onlineUserRepository.save(onlineUser);
-                }
-
-                // Send confirmation back to user
-                messagingTemplate.convertAndSendToUser(
-                    username, 
-                    "/topic/" + chatId + "/reply", 
-                    "Subscribed to chat " + chatId
-                );
-            }
-        } catch (Exception e) {
-            logger.error("Error in chat subscription: {}", e.getMessage(), e);
-        }
-    }
-
     @MessageMapping("/chat.message")
-    public void sendMessage(@Payload InstantChatMessage payload, @AuthenticationPrincipal UserDetails userDetails) {
+    public void sendMessage(@Payload InstantChatMessage payload, Principal principal) {
+        UserDetails userDetails = null;
         try {
+            if(principal instanceof UsernamePasswordAuthenticationToken auth) {
+                userDetails = (UserDetails) auth.getPrincipal();
+            } else {
+                logger.warn("Unauthenticated user attempted to send message");
+                return;
+            }
             if (userDetails == null) {
                 logger.warn("Unauthenticated user attempted to send message");
                 return;
@@ -94,47 +74,29 @@ public class MessagingController {
             Chat chat = chatRepository.findByIdAndParticipant(chatId, sender)
                     .orElseThrow(() -> new RuntimeException("Chat not found or access denied"));
 
-            // Set authenticated sender ID
+            // Set authenticated sender ID and timestamp
             payload.setSender(sender.getId().toString());
             payload.setTimestamp(LocalDateTime.now().toString());
 
             logger.info("Sending message from {} to chat {}", senderUsername, chatId);
 
-            // Save message to database immediately for consistency
-            Message message = new Message();
-            message.setContentText(payload.getContent());
-            message.setSender(sender);
-            message.setChat(chat);
-            message.setTimestamp(LocalDateTime.now());
-            Message savedMessage = messageRepository.save(message);
-
             // Send to RabbitMQ for distribution
             messageProducer.sendChatMessage(payload);
 
-            // Send immediate confirmation to sender
-            messagingTemplate.convertAndSendToUser(
-                senderUsername,
-                "/topic/" + chatId + "/confirmation",
-                "Message sent successfully"
-            );
-
-            logger.info("Message saved with ID: {} and queued for distribution", savedMessage.getId());
+            logger.info("Message from user {} for chat {} queued for distribution", sender.getId(), chat.getId());
 
         } catch (Exception e) {
             logger.error("Error sending message: {}", e.getMessage(), e);
-            if (userDetails != null) {
-                messagingTemplate.convertAndSendToUser(
-                    userDetails.getUsername(),
-                    "/topic/error",
-                    "Failed to send message: " + e.getMessage()
-                );
-            }
         }
     }
 
     @MessageMapping("/chat.typing")
-    public void handleTyping(@Payload TypingIndicator typingIndicator, @AuthenticationPrincipal UserDetails userDetails) {
+    public void handleTyping(@Payload TypingIndicator typingIndicator, Principal principal) {
         try {
+            UserDetails userDetails = null;
+            if(principal instanceof UsernamePasswordAuthenticationToken auth) {
+                userDetails = (UserDetails) auth.getPrincipal();
+            }
             if (userDetails != null) {
                 String username = userDetails.getUsername();
                 typingIndicator.setUsername(username);
@@ -151,13 +113,19 @@ public class MessagingController {
     }
 
     @MessageMapping("/chat.disconnect")
-    public void handleDisconnect(@AuthenticationPrincipal UserDetails userDetails) {
+    public void handleDisconnect(Principal principal) {
         try {
+            UserDetails userDetails = null;
+            if(principal instanceof UsernamePasswordAuthenticationToken auth) {
+                userDetails = (UserDetails) auth.getPrincipal();
+            } else {
+                logger.warn("Unauthenticated user attempted to disconnect");
+                return;
+            }
             if (userDetails != null) {
                 String username = userDetails.getUsername();
                 logger.info("User {} disconnecting", username);
-                
-                // Remove from online users
+
                 OnlineUser onlineUser = onlineUserRepository.findByUsername(username);
                 if (onlineUser != null) {
                     onlineUserRepository.delete(onlineUser);

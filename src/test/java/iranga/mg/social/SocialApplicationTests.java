@@ -50,5 +50,7 @@ class SocialApplicationTests {
 	void shouldRequireAuthenticationForApiEndpoints() throws Exception {
 		mockMvc.perform(get("/api/users"))
 				.andExpect(status().isUnauthorized());
+		mockMvc.perform(get("/api/auth/users"))
+				.andExpect(status().isUnauthorized());
 	}
 }

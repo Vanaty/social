@@ -18,7 +18,7 @@ import jakarta.servlet.ServletException;
 import java.util.HashMap;
 import java.util.Map;
 
-// @RestControllerAdvice
+@RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
@@ -80,6 +80,15 @@ public class GlobalExceptionHandler {
     public void handleMessageConversionException(MessageConversionException ex) {
         logger.error("Message conversion error: {}", ex.getMessage(), ex);
         // Handle WebSocket message conversion errors
+    }
+
+    @ExceptionHandler(AccessGranted.class)
+    public ResponseEntity<Map<String, String>> handleAccessGrantedException(AccessGranted ex) {
+        logger.warn("Access granted exception: {}", ex.getMessage());
+        Map<String, String> error = new HashMap<>();
+        error.put("error", "Access granted");
+        error.put("message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
     }
 
     @ExceptionHandler(RuntimeException.class)

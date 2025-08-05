@@ -1,6 +1,7 @@
 package iranga.mg.social.messaging;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,19 +39,30 @@ public class MessageConsumer {
     @RabbitListener(queues = RabbitConfig.CHAT_MESSAGING_QUEUE)
     public void handleChatMessage(InstantChatMessage instantMessage) {
         try {
-            logger.info("Processing message from {} to {}", 
+            logger.info("Processing message from sender ID {} for chat ID {}", 
                        instantMessage.getSender(), instantMessage.getReceiver());
             
             // Save message to database
             Message message = saveMessageToDatabase(instantMessage);
-            
-            // Send to WebSocket subscribers
             messagingTemplate.convertAndSend(
-                "/topic/" + instantMessage.getReceiver() + "/reply", 
-                instantMessage
+                "/topic/chat/" + instantMessage.getReceiver(), 
+                message
             );
+
+            // Find all participants of the chat to notify them
+            // Chat chat = message.getChat();
+            // List<User> participants = chat.getParticipants().stream().map(p -> p.getUser()).toList();
+
+            // Send to WebSocket subscribers of each participant
+            // for (User participant : participants) {
+            //     messagingTemplate.convertAndSendToUser(
+            //         participant.getUsername(),
+            //         "/queue/messages", 
+            //         instantMessage
+            //     );
+            // }
             
-            logger.info("Message processed successfully with ID: {}", message.getId());
+            logger.info("Message processed and distributed successfully with ID: {}", message.getId());
             
         } catch (Exception e) {
             logger.error("Failed to process message: {}", e.getMessage(), e);

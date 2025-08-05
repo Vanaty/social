@@ -8,10 +8,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.servlet.ModelAndView;
 
-import iranga.mg.social.messaging.ReceiveMessageListener;
 import iranga.mg.social.repository.OnlineUserRepository;
 import iranga.mg.social.repository.UserRepository;
-import jakarta.servlet.http.HttpSession;
 @Controller
 public class ViewController {
 
@@ -20,9 +18,6 @@ public class ViewController {
 
 	@Autowired
 	OnlineUserRepository onlineUserRepo;
-
-	@Autowired
-	ReceiveMessageListener receiver;
 
 	Logger logger = LoggerFactory.getLogger(MessagingController.class);
 
@@ -42,9 +37,7 @@ public class ViewController {
 	}
 
 	@GetMapping("/disconnect")
-	public ModelAndView disconnect(HttpSession session) {
-		receiver.disconnectListener(session.getId());
-		session.invalidate();
+	public ModelAndView disconnect() {
 		SecurityContextHolder.clearContext();
 		ModelAndView mav = new ModelAndView();
 		mav.setViewName("index.html");
