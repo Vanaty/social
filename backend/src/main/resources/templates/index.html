@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Login</title>
+</head>
+<body>
+<h1>Login</h1>
+<form id="loginForm">
+    username: <input type="text" id="username" name="username"><br><br>
+    password: <input type="password" id="password" value="test@user" name="password"><br><br>
+    <input type="submit" value="Login">
+</form>
+<p id="error" style="color:red;"></p>
+<a href="/registration">register</a>
+
+<script>
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const errorP = document.getElementById('error');
+    errorP.textContent = '';
+
+    fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username, password })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Login failed');
+        }
+        return response.json();
+    })
+    .then(data => {
+        localStorage.setItem('jwt', data.token);
+        console.log("Token received:", data.token);
+        // Extract username from token or use the one provided
+        const token = data.token;
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        console.log("Username:", username);
+        localStorage.setItem('username', username);
+        localStorage.setItem('userId', payload.user.id);
+        alert('Login successful! Redirecting to chat...');
+        window.location.href = '/chat';
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        errorP.textContent = 'Invalid username or password.';
+    });
+});
+</script>
+</body>
+</html>

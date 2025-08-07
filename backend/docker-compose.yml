@@ -1,0 +1,22 @@
+services:
+  rabbitmq:
+    image: "rabbitmq:management"
+    container_name: "rabbit"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+  mariadb:
+    image: mariadb:10.11
+    container_name: mariadb_docker
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: iranga_mg
+      MARIADB_USER: iranga
+      MARIADB_PASSWORD: iranga
+    ports:
+      - "3306:3306"  # ⚠️ 3307 sur l'hôte, mappé à 3306 dans le conteneur
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+volumes:
+  mariadb_data:
