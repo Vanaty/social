@@ -1,12 +1,12 @@
 import axios from "axios";
-import auth from "../config/firebase";
 import { io } from "socket.io-client";
 
 const baseURL = "http://localhost:3001/api";
 
 const getUserToken = async () => {
-  const user = auth.currentUser;
-  const token = user && (await user.getIdToken());
+  // const user = auth.currentUser;
+  // const token = user && (await user.getIdToken());
+  const token = "";
   return token;
 };
 
