@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import iranga.mg.social.config.FileStorageConfig;
+import iranga.mg.social.dto.FileResponse;
 import iranga.mg.social.service.FileService;
 import jakarta.annotation.PostConstruct;
 
@@ -47,7 +48,7 @@ public class FileController {
     }
 
     @PostMapping("/upload")
-    public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<FileResponse> uploadFile(@RequestParam("file") MultipartFile file) throws IOException {
         String originalFileName = StringUtils.cleanPath(file.getOriginalFilename());
         String storage = fileService.getStorage(file.getContentType());
         String fileExtension = "";
@@ -57,16 +58,11 @@ public class FileController {
             fileExtension = "";
         }
         String newFileName = UUID.randomUUID().toString() + fileExtension;
-
-        try {
-            Path targetLocation = Path.of(storage,newFileName).normalize();
-            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
-            String fileDownloadUri = URI.create("/api/files/download/"+ URI.create(targetLocation.toUri().toString()).toString()).toString();
-
-            return ResponseEntity.ok(fileDownloadUri);
-        } catch (IOException ex) {
-            return ResponseEntity.internalServerError().body("Could not store file " + originalFileName + ". Please try again!");
-        }
+        Path targetLocation = Path.of(storage,newFileName).normalize();
+        Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+        String fileDownloadUri = URI.create("/api/files/download/"+ URI.create(targetLocation.toString().replace("\\", "/")).toString()).toString();
+        String fileThumbPath = fileService.getThumbnail(targetLocation).toString().replace("\\", "/");
+        return ResponseEntity.ok(new FileResponse(fileDownloadUri, fileThumbPath));
     }
 
     @GetMapping("/download/{fileName:.+}")

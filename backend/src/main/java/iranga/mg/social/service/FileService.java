@@ -1,8 +1,10 @@
 package iranga.mg.social.service;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import javax.imageio.ImageIO;
 import java.awt.Image;
@@ -52,7 +54,7 @@ public class FileService {
         return  Path.of(this.fileStorageConfig.getFilesDir(), fileName);
     }
 
-    private String generateThumbnail(Path path) throws IOException {
+    private Path generateImageThumbnail(Path path) throws IOException {
         BufferedImage originalImage = ImageIO.read(path.toFile());
 
         int thumbnailWidth = 200;
@@ -65,10 +67,24 @@ public class FileService {
         g2d.drawImage(scaledImage, 0, 0, null);
         g2d.dispose();
 
-        String thumbFileName = "thumb_" + path.getFileName();
-        Path thumbPath = path.getParent().resolve(thumbFileName);
+        String thumbFileName = path.getFileName().toString();
+        Path thumbPath = Paths.get(fileStorageConfig.getThumbnailDir(), thumbFileName);
         ImageIO.write(thumbnail, "jpg", thumbPath.toFile());
+        return thumbPath;
+    }
 
-        return thumbFileName;
+
+    public Path getThumbnail(Path path) throws IOException {
+        String type = this.getFileContentType(path);
+        if (type.contains("image")) {
+            return this.generateImageThumbnail(path);
+        } else {
+            return Paths.get("icons/file.png");
+        }
+        //TODO Ajouter les different thumb
+    }
+
+    public static void  main(String[] args) throws IOException {
+        System.out.println(URI.create(Paths.get("data/google").toString()));
     }
 }
