@@ -18,7 +18,6 @@ public class InstantChatMessage implements Serializable {
 	private String content;
 	private String thumbnailUrl;
 	private String fileUrl;
-	private TypeMessage messageType = TypeMessage.TEXT;
+	private TypeMessage type = TypeMessage.TEXT;
 	private String timestamp = String.valueOf(System.currentTimeMillis());
-	private String type = "CHAT";
 }

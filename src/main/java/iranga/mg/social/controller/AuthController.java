@@ -75,15 +75,11 @@ public class AuthController {
     @PostMapping("/register")
     @Operation(summary = "User registration")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest registerRequest) {
-        try {
-            if (userRepository.findUserByUsername(registerRequest.getUsername()).isPresent()) {
-                return ResponseEntity.badRequest().body("Username already exists");
-            }
-            authServie.registreUser(registerRequest);
-            return ResponseEntity.ok("User registered successfully");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Registration failed");
+        if (userRepository.findUserByUsername(registerRequest.getUsername()).isPresent()) {
+            return ResponseEntity.badRequest().body("Username already exists");
         }
+        authServie.registreUser(registerRequest);
+        return ResponseEntity.ok("User registered successfully");
     }
 
     @GetMapping("/check-username")

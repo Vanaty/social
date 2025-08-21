@@ -9,5 +9,5 @@ import iranga.mg.social.model.Message;
 
 @Repository
 public interface MessageRepository extends JpaRepository<Message, Long> {
-    Page<Message> findByChatIdOrderByTimestampAsc(Long chatId,Pageable pageable);
+    Page<Message> findByChatIdOrderByTimestampDesc(Long chatId, Pageable pageable);
 }

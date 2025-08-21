@@ -26,4 +26,9 @@ public class Role {
 
 	public Role() {
 	}
+
+	public Role(Long id, String libelle) {
+		this.id = id;
+		this.libelle = libelle;
+	}
 }

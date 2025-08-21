@@ -50,7 +50,7 @@ public class MessageService {
     }
     
     public Page<Message> getChatMessages(Long chatId, Pageable pageable) {
-        return messageRepository.findByChatIdOrderByTimestampAsc(chatId, pageable);
+        return messageRepository.findByChatIdOrderByTimestampDesc(chatId, pageable);
     }
     
     public Message saveMessage(User sender, Chat chat, String content) {

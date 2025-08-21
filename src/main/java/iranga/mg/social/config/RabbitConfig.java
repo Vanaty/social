@@ -3,7 +3,6 @@ package iranga.mg.social.config;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.ExchangeBuilder;
-import org.springframework.amqp.core.FanoutExchange;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
@@ -26,6 +25,8 @@ public class RabbitConfig {
     public final static String NOTIFICATION_QUEUE = "notification_queue";
     public final static String DEAD_LETTER_QUEUE = "dead_letter_queue";
     public final static String NOTIFICATION_EXCHANGE = "notification_exchange";
+    public final static String TYPING_STATUS_QUEUE = "typing_status_queue";
+    public final static String READ_STATUS_QUEUE = "read_status_queue";
 
 	@Bean
 	public Queue createChatMessagingQueue() {
@@ -38,8 +39,8 @@ public class RabbitConfig {
 	}
 
 	@Bean
-	public FanoutExchange createOutgoingExchange() {
-		return ExchangeBuilder.fanoutExchange(OUTGOING_EXCHANGE).build();
+	public TopicExchange createOutgoingExchange() {
+		return ExchangeBuilder.topicExchange(OUTGOING_EXCHANGE).build();
 	}
 
 	@Bean
@@ -70,7 +71,32 @@ public class RabbitConfig {
 	@Bean
 	public Binding createChatMessageBinding() {
         return BindingBuilder.bind(createChatMessagingQueue())
-                .to(createOutgoingExchange());
+                .to(createOutgoingExchange())
+                .with("chat.message");
+    }
+
+    @Bean
+    public Queue createTypingStatusQueue() {
+        return QueueBuilder.durable(TYPING_STATUS_QUEUE).build();
+    }
+
+    @Bean
+    public Binding createTypingStatusBinding() {
+        return BindingBuilder.bind(createTypingStatusQueue())
+                .to(createOutgoingExchange())
+                .with("chat.typing.*");
+    }
+
+    @Bean
+    public Queue createReadStatusQueue() {
+        return QueueBuilder.durable(READ_STATUS_QUEUE).build();
+    }
+
+    @Bean
+    public Binding createReadStatusBinding() {
+        return BindingBuilder.bind(createReadStatusQueue())
+                .to(createOutgoingExchange())
+                .with("chat.read.*");
     }
 
 	@Bean

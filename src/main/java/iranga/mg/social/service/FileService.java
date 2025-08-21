@@ -68,7 +68,7 @@ public class FileService {
         g2d.dispose();
 
         String thumbFileName = path.getFileName().toString();
-        Path thumbPath = Paths.get(fileStorageConfig.getThumbnailDir(), thumbFileName);
+        Path thumbPath = Path.of(fileStorageConfig.getThumbnailDir(), thumbFileName);
         ImageIO.write(thumbnail, "jpg", thumbPath.toFile());
         return thumbPath;
     }
@@ -79,7 +79,7 @@ public class FileService {
         if (type.contains("image")) {
             return this.generateImageThumbnail(path);
         } else {
-            return Paths.get("icons/file.png");
+            return Path.of("icons/file.png");
         }
         //TODO Ajouter les different thumb
     }

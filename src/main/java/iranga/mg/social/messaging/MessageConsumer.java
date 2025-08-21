@@ -7,10 +7,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
 import iranga.mg.social.config.RabbitConfig;
+import iranga.mg.social.dto.chat.ReadStatus;
+import iranga.mg.social.dto.chat.TypingStatus;
 import iranga.mg.social.model.Chat;
 import iranga.mg.social.model.InstantChatMessage;
 import iranga.mg.social.model.Media;
@@ -57,6 +60,28 @@ public class MessageConsumer {
             logger.error("Failed to process message: {}", e.getMessage(), e);
         }
     }
+
+    @RabbitListener(queues = RabbitConfig.TYPING_STATUS_QUEUE)
+    public void handleTypingStatus(TypingStatus status, @Header("amqp_receivedRoutingKey") String routingKey) {
+        try {
+            String chatId = routingKey.substring("chat.typing.".length());
+            logger.info("Forwarding typing status for chat {}: {}", chatId, status.getUsername());
+            messagingTemplate.convertAndSend("/topic/chat/" + chatId + "/typing", status);
+        } catch (Exception e) {
+            logger.error("Failed to process typing status: {}", e.getMessage(), e);
+        }
+    }
+
+    @RabbitListener(queues = RabbitConfig.READ_STATUS_QUEUE)
+    public void handleReadStatus(ReadStatus status, @Header("amqp_receivedRoutingKey") String routingKey) {
+        try {
+            String chatId = routingKey.substring("chat.read.".length());
+            logger.info("Forwarding read status for chat {}: message {}", chatId, status.getMessageId());
+            messagingTemplate.convertAndSend("/topic/chat/" + chatId + "/read", status);
+        } catch (Exception e) {
+            logger.error("Failed to process read status: {}", e.getMessage(), e);
+        }
+    }
     
     private Message saveMessageToDatabase(InstantChatMessage instantMessage) {
         try {
@@ -74,14 +99,14 @@ public class MessageConsumer {
             message.setSender(sender);
             message.setChat(chat);
             message.setTimestamp(LocalDateTime.now());
-            message.setType(instantMessage.getMessageType());
+            message.setType(instantMessage.getType());
             
-            if (instantMessage.getMessageType() == TypeMessage.IMAGE || instantMessage.getMessageType() == TypeMessage.FILE) {
+            if (instantMessage.getType() == TypeMessage.IMAGE || instantMessage.getType() == TypeMessage.FILE) {
                 Media media = new Media();
                 media.setFileName(instantMessage.getContent());
                 media.setThumbnailUrl(instantMessage.getThumbnailUrl());
                 media.setFileUrl(instantMessage.getFileUrl());
-                media.setMediaType(instantMessage.getMessageType().name());
+                media.setMediaType(instantMessage.getType().name());
                 message.setMedia(media);
             }
             

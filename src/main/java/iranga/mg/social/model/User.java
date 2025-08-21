@@ -33,7 +33,7 @@ public class User {
 
 
 	@ManyToOne(optional = false, fetch = FetchType.EAGER)
-	private Role role;
+	private Role role = new Role(1L, "EMPLOYEE");
 
 	@JsonIgnore
 	@Column(nullable = false, length = 100) // Ensure password is not null

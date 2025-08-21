@@ -31,10 +31,13 @@ public class AuthServie {
         user.setPhoneNumber(registerRequest.getPhoneNumber());
         user.setAddress(registerRequest.getAddress());
         user.setProfilePictureUrl(registerRequest.getProfilePictureUrl());
-        Role role = roleRepository.findById(registerRequest.getRoleId())
-                .orElseThrow(() -> new IllegalArgumentException("Role not found with id: " + registerRequest.getRoleId()));
-        user.setRole(role);
+        if (registerRequest.getRoleId() != null) {
+            Role role = roleRepository.findById(registerRequest.getRoleId())
+                    .orElseThrow(() -> new IllegalArgumentException("Role not found with id: " + registerRequest.getRoleId()));
+            user.setRole(role);
+        }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
+        userRepository.save(user);
         return user;
         
     }

@@ -1,4 +1,4 @@
-package iranga.mg.social.controller;
+package iranga.mg.social.controller.view;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,9 +25,9 @@ public class ViewController {
 		return "pages/sign-in";
 	}
 
-	@GetMapping("/chat")
-	public String privateChatView() {
-		return "chat";
+	@GetMapping("/dashboard")
+	public String dashboard() {
+		return "pages/dashboard";
 	}
 
 	@GetMapping("/sign-in")
@@ -49,6 +49,11 @@ public class ViewController {
 	@GetMapping("/create-chat")
 	public String createChatView() {
 		return "create-chat";
+	}
+
+	@GetMapping("/chat")
+	public String chatView() {
+		return "pages/chat";
 	}
 
 }
