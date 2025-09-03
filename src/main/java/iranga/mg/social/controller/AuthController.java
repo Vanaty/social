@@ -63,6 +63,7 @@ public class AuthController {
             response.put("token", jwt);
             response.put("username", userDetails.getUsername());
             response.put("userId", user.getId());
+            response.put("user", user);
 
             return ResponseEntity.ok(response);
         } catch (BadCredentialsException e) {

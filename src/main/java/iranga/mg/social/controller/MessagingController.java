@@ -40,19 +40,10 @@ public class MessagingController {
     private MessageService messageService;
 
     @Autowired
-    private SimpMessagingTemplate messagingTemplate;
-
-    @Autowired
-    private MessageRepository messageRepository;
-
-    @Autowired
     private UserRepository userRepository;
 
     @Autowired
     private ChatRepository chatRepository;
-
-    @Autowired
-    private OnlineUserRepository onlineUserRepository;
 
     @MessageMapping("/chat.message")
     public void sendMessage(@Payload InstantChatMessage payload, Principal principal) {

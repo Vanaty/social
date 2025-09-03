@@ -107,4 +107,18 @@ public class ChatService {
             return chat;
         });
     }
+
+    public Chat getChatDetails(Long chatId, User user) {
+        Chat chat = chatRepository.findById(chatId)
+                .orElseThrow(() -> new RuntimeException("Chat not found"));
+        
+        boolean hasAccess = chat.getParticipants().stream()
+                .anyMatch(p -> p.getUser().getId().equals(user.getId()));
+        if (!hasAccess) {
+            throw new AccessGranted("Access denied to chat details");
+        }
+        
+        chat.getParticipants().size();
+        return chat;
+    }
 }

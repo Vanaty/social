@@ -107,4 +107,14 @@ public class ChatController {
         Page<Message> messages = chatService.getChatMessages(chatId, currentUser, pageable);
         return ResponseEntity.ok(messages);
     }
+
+    @GetMapping("/{chatId}")
+    @Operation(summary = "Get chat details")
+    public ResponseEntity<Chat> getChatDetails(@PathVariable Long chatId, @AuthenticationPrincipal UserDetails userDetails) {
+        User currentUser = userRepository.findUserByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Chat chat = chatService.getChatDetails(chatId, currentUser);
+        return ResponseEntity.ok(chat);
+    }
 }

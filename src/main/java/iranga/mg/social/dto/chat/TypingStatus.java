@@ -9,6 +9,6 @@ import lombok.Setter;
 @Setter
 public class TypingStatus {
     private String username;
-    private boolean isTyping;
+    private boolean isTyping = true;
     // getters/setters
 }
