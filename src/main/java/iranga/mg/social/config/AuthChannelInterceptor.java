@@ -46,7 +46,7 @@ public class AuthChannelInterceptor implements ChannelInterceptor {
                         UserDetails userDetails = userDetailsService.loadUserByUsername(username);
                         if (jwtUtil.validateToken(jwt, userDetails)) {
                             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                                    userDetails, null, userDetails.getAuthorities());
+                                     userDetails, null, userDetails.getAuthorities());
                             accessor.setUser(authentication);
                         }
                     }

@@ -15,12 +15,14 @@ public class UserPrincipale implements UserDetails{
 
 	private User user;
 	
-	
+	public UserPrincipale() {
+		super();
+	}
 	public UserPrincipale(User user) {
 		super();
 		this.user = user;
 	}
-
+	
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {
 		// TODO Auto-generated method stub

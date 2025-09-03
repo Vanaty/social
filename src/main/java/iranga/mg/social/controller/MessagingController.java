@@ -1,64 +1,106 @@
 package iranga.mg.social.controller;
 
+import java.security.Principal;
+import java.time.LocalDateTime;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.handler.annotation.SendTo;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.RestController;
 
-import iranga.mg.social.messaging.SendMessageHandler;
+import iranga.mg.social.dto.chat.ReadStatus;
+import iranga.mg.social.dto.chat.TypingStatus;
+import iranga.mg.social.messaging.MessageProducer;
+import iranga.mg.social.model.Chat;
 import iranga.mg.social.model.InstantChatMessage;
+import iranga.mg.social.model.OnlineUser;
+import iranga.mg.social.model.User;
+import iranga.mg.social.repository.ChatRepository;
+import iranga.mg.social.repository.MessageRepository;
+import iranga.mg.social.repository.OnlineUserRepository;
+import iranga.mg.social.repository.UserRepository;
+import iranga.mg.social.service.MessageService;
 
 @RestController
 public class MessagingController {
 
-	@Autowired
-	SendMessageHandler sender;
+    private static final Logger logger = LoggerFactory.getLogger(MessagingController.class);
 
-	Logger logger = LoggerFactory.getLogger(MessagingController.class);
+    @Autowired
+    private MessageProducer messageProducer;
 
-	@MessageMapping("/chat.subscribe")
-	@SendTo("/topic/reply")
-	public void subscribe(@Payload String name) {
-		sender.createExchange(name);
-		logger.info("subscribed............" + name);
-	}
+    @Autowired
+    private MessageService messageService;
 
-	@MessageMapping("/chat.message")
-	@SendTo("/topic/reply")
-	public void sendMessage(@Payload InstantChatMessage payload) {
-		logger.info("send message from " + payload.getSender() + " to " + payload.getReceiver());
-		sender.sendMessageToOutgoingExchange(payload);
-	}
+    @Autowired
+    private UserRepository userRepository;
 
+    @Autowired
+    private ChatRepository chatRepository;
 
-	// @Autowired
-	// private SimpMessagingTemplate messagingTemplate;
-	// @Autowired
-	// private MessageRepository messageRepository;
-	// @Autowired
-	// private UserRepository userRepository;
-	// @Autowired
-	// private ChatRepository chatRepository;
+    @MessageMapping("/chat.message")
+    public void sendMessage(@Payload InstantChatMessage payload, Principal principal) {
+        UserDetails userDetails = null;
+        try {
+            if(principal instanceof UsernamePasswordAuthenticationToken auth) {
+                userDetails = (UserDetails) auth.getPrincipal();
+            } else {
+                logger.warn("Unauthenticated user attempted to send message");
+                return;
+            }
+            if (userDetails == null) {
+                logger.warn("Unauthenticated user attempted to send message");
+                return;
+            }
 
+            String senderUsername = userDetails.getUsername();
+            User sender = userRepository.findUserByUsername(senderUsername)
+                    .orElseThrow(() -> new RuntimeException("Sender not found: " + senderUsername));
 
-	// Logger logger = LoggerFactory.getLogger(MessagingController.class);
+            // Validate chat exists and user has access
+            Long chatId = Long.parseLong(payload.getReceiver());
+            Chat chat = chatRepository.findByIdAndParticipant(chatId, sender)
+                    .orElseThrow(() -> new RuntimeException("Chat not found or access denied"));
 
-	// @MessageMapping("/chat.sendMessage")
-	// public void sendMessage(@Payload Message chatMessage) {
-	// 	logger.info("Received message: " + chatMessage.getContent());
-	// 	User sender = userRepository.findUserByUsername(chatMessage.getSender().getUsername()).orElseThrow();
-	// 	chatMessage.setSender(sender);
-	// 	chatMessage.setTimestamp(LocalDateTime.now());
-	// 	Message savedMessage = messageRepository.save(chatMessage);
+            // Set authenticated sender ID and timestamp
+            payload.setSender(sender.getId().toString());
+            payload.setTimestamp(LocalDateTime.now().toString());
 
-	// 	// Populate chat for the response
-	// 	savedMessage.setChat(chatRepository.findById(chatMessage.getChat().getId()).orElse(null));
+            logger.info("Sending message from {} to chat {}", senderUsername, chatId);
 
-	// 	messagingTemplate.convertAndSend("/topic/chat/" + savedMessage.getChat().getId(), savedMessage);
-	// }
+            // Send to RabbitMQ for distribution
+            messageProducer.sendChatMessage(payload);
 
+            logger.info("Message from user {} for chat {} queued for distribution", sender.getId(), chat.getId());
+
+        } catch (Exception e) {
+            logger.error("Error sending message: {}", e.getMessage(), e);
+        }
+    }
+    
+    @MessageMapping("/chat/{chatId}/typing")
+    public void sendTypingStatus(@DestinationVariable Long chatId,
+                                       TypingStatus status,
+                                       Principal principal) {
+        status.setUsername(principal.getName());
+        messageProducer.sendTypingStatus(chatId, status);
+    }
+
+    @MessageMapping("/chat/{chatId}/read")
+    public void markMessageAsRead(@DestinationVariable Long chatId,
+                                 ReadStatus readStatus,
+                                 Principal principal) {
+        User u  = userRepository.findUserByUsername(principal.getName())
+                .orElseThrow(() -> new RuntimeException("User not found: " + principal.getName()));
+        messageService.markMessageAsRead(readStatus.getMessageId(), u);
+
+        messageProducer.sendReadStatus(chatId, readStatus);
+    }
 }

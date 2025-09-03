@@ -1,25 +1,45 @@
 package iranga.mg.social.model;
 
-import jakarta.persistence.*;
-import iranga.mg.social.type.TypeMedia;
+import java.time.LocalDateTime;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToOne;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "media")
-@Data
-@Setter
 @Getter
+@Setter
+@Data
 public class Media {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // Ensure correct strategy
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String url;
-    private String name; // e.g., "photo.jpg", "video.mp4"
-    @Enumerated(EnumType.STRING)
-    private TypeMedia type = TypeMedia.FILE; // e.g., "image", "video", "audio"
-    private String thumbnailUrl; // Optional, for images or videos
-    private Long size; // Size in bytes
-    private String format; // e.g., "jpg", "mp4", etc.
+
+    @Column(nullable = false)
+    private String fileName;
+
+    @Column(nullable = false, length = 1024)
+    private String thumbnailUrl;
+
+    @Column(nullable = false, length = 1024)
+    private String fileUrl;
+
+    private String mediaType; // e.g., 'image/png'
+
+    private Long fileSize;
+
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    @OneToOne(mappedBy = "media")
+    @JsonIgnore
+    private Message message;
 }

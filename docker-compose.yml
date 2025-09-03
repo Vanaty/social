@@ -5,8 +5,18 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
-  redis:
-    image: "redis:5-alpine"
-    container_name: "redis"
+  mariadb:
+    image: mariadb:10.11
+    container_name: mariadb_docker
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: iranga_mg
+      MARIADB_USER: iranga
+      MARIADB_PASSWORD: iranga
     ports:
-      - "6379:6379"
+      - "3306:3306"  # ⚠️ 3307 sur l'hôte, mappé à 3306 dans le conteneur
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+volumes:
+  mariadb_data:

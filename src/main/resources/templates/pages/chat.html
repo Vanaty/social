@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{include/head :: head}">
+</head>
+
+<body class="m-0 font-sans antialiased font-normal text-base leading-default bg-gray-50 text-slate-500">
+  <!-- Sidebar -->
+  <aside th:replace="~{include/aside-nav :: aside}"></aside>
+
+  <main class="ease-soft-in-out xl:ml-68.5 relative h-full max-h-screen rounded-xl transition-all duration-200">
+    <!-- Navbar -->
+    <nav class="relative flex flex-wrap items-center justify-between px-0 py-2 mx-6 transition-all shadow-none duration-250 ease-soft-in rounded-2xl lg:flex-nowrap lg:justify-start" navbar-main navbar-scroll="true">
+      <div class="flex items-center justify-between w-full px-4 py-1 mx-auto flex-wrap-inherit">
+        <nav>
+          <ol class="flex flex-wrap pt-1 mr-12 bg-transparent rounded-lg sm:mr-16">
+            <li class="leading-normal text-sm">
+              <a class="opacity-50 text-slate-700" href="javascript:;">Pages</a>
+            </li>
+            <li class="text-sm pl-2 capitalize leading-normal text-slate-700 before:float-left before:pr-2 before:text-gray-600 before:content-['/']" aria-current="page">
+              Chat
+            </li>
+          </ol>
+          <h6 class="mb-0 font-bold capitalize">Chat</h6>
+        </nav>
+
+        <div class="flex items-center mt-2 grow sm:mt-0 sm:mr-6 md:mr-0 lg:flex lg:basis-auto">
+          <ul class="flex flex-row justify-end pl-0 mb-0 list-none md-max:w-full">
+            <li class="flex items-center">
+              <span class="block px-0 py-2 font-semibold transition-all ease-nav-brand text-sm text-slate-500">
+                <i class="fa fa-user sm:mr-1"></i>
+                <span class="hidden sm:inline" id="navbar-username">Loading...</span>
+              </span>
+            </li>
+            <li class="flex items-center pl-4">
+              <form method="get" action="/disconnect">
+                <button type="submit" class="block px-0 py-2 font-semibold transition-all ease-nav-brand text-sm text-slate-500">
+                  <i class="fa fa-sign-out-alt sm:mr-1"></i>
+                  <span class="hidden sm:inline">Disconnect</span>
+                </button>
+              </form>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Chat Content -->
+    <div class="w-full px-6 py-6 mx-auto">
+      <div class="flex flex-wrap -mx-3">
+        <!-- Chat Sidebar -->
+        <div class="w-full max-w-full px-3 mb-6 lg:mb-0 lg:w-4/12 lg:flex-none">
+          <div class="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border h-full">
+            <div class="flex-auto p-4">
+              <!-- User Welcome -->
+              <div class="mb-4 p-4 bg-gradient-to-tl from-purple-700 to-pink-500 rounded-xl text-white">
+                <h5 class="mb-1 text-white font-bold">Welcome</h5>
+                <p class="mb-0 text-white opacity-80" id="username-display">Loading...</p>
+              </div>
+
+              <!-- Create Chat Button -->
+              <div class="mb-4">
+                <button onclick="goToCreateChat()" class="inline-block w-full px-6 py-3 font-bold text-center text-white uppercase align-middle transition-all bg-transparent border-0 rounded-lg cursor-pointer shadow-soft-md bg-150 bg-x-25 bg-gradient-to-tl from-gray-900 to-slate-800 hover:scale-102 hover:shadow-soft-xs active:opacity-85 leading-pro text-xs ease-soft-in tracking-tight-soft">
+                  <i class="fas fa-plus mr-2"></i>Create New Chat
+                </button>
+              </div>
+
+              <!-- Chats List -->
+              <div class="mb-4">
+                <h6 class="mb-3 font-bold text-slate-700">Your Chats</h6>
+                <div id="chats-list" class="space-y-2"></div>
+              </div>
+
+              <!-- Online Users -->
+              <div>
+                <h6 class="mb-3 font-bold text-slate-700">Online Users</h6>
+                <div id="online_users" class="space-y-1"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Main Area -->
+        <div class="w-full max-w-full px-3 lg:w-8/12 lg:flex-none">
+          <div class="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border h-full" style="height: 70vh;">
+            <!-- Chat Header -->
+            <div class="flex-none p-4 bg-white border-b border-gray-200 rounded-t-2xl">
+              <h6 class="mb-0 font-bold text-slate-700" id="current-chat-info">Select a chat to start messaging</h6>
+            </div>
+
+            <!-- Messages Area -->
+            <div class="flex-1 overflow-y-auto p-4" id="messages">
+              <div id="messages-display" class="space-y-3"></div>
+            </div>
+
+            <!-- Message Input -->
+            <div class="flex-none p-4 border-t border-gray-200 rounded-b-2xl">
+              <div class="flex items-center space-x-3" id="message-form">
+                <button id="attach-file-btn" disabled class="flex items-center justify-center w-10 h-10 text-slate-500 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+                  <i class="fas fa-paperclip"></i>
+                </button>
+                <input type="file" id="file-input" style="display: none;" />
+                <div class="flex-1">
+                  <textarea id="text" rows="1" disabled placeholder="Select a chat to start messaging..." class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"></textarea>
+                </div>
+                <button id="send" disabled class="flex items-center justify-center px-6 py-2 font-bold text-white bg-gradient-to-tl from-purple-700 to-pink-500 rounded-lg hover:scale-102 transition-all">
+                  <i class="fas fa-paper-plane mr-2"></i>Send
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Scripts -->
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.4.0/sockjs.min.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+  
+  <script type="text/javascript">
+'use strict';
+
+class ChatApplication {
+    constructor() {
+        this.token = localStorage.getItem('jwt');
+        this.username = localStorage.getItem('username');
+        this.userId = localStorage.getItem('userId');
+        this.currentChatId = null;
+        this.userChats = [];
+        this.allUsers = [];
+        this.socket = null;
+        this.stompClient = null;
+        
+        this.init();
+    }
+
+    init() {
+        if (!this.token || !this.username) {
+            window.location.href = '/';
+            return;
+        }
+        
+        document.getElementById('username-display').textContent = this.username;
+        document.getElementById('navbar-username').textContent = this.username;
+        this.bindEvents();
+        this.connectWebSocket();
+    }
+
+    bindEvents() {
+        const sendButton = document.getElementById('send');
+        const textArea = document.getElementById('text');
+        const attachButton = document.getElementById('attach-file-btn');
+        const fileInput = document.getElementById('file-input');
+        
+        sendButton?.addEventListener('click', () => this.sendMessage());
+        textArea?.addEventListener('keypress', (e) => {
+            if (e.which === 13 && !e.shiftKey) {
+                e.preventDefault();
+                this.sendMessage();
+            }
+        });
+
+        attachButton?.addEventListener('click', () => fileInput.click());
+        fileInput?.addEventListener('change', (e) => this.handleFileUpload(e));
+    }
+
+    connectWebSocket() {
+        try {
+            this.socket = new SockJS("/ws");
+            this.stompClient = Stomp.over(this.socket);
+            
+            const headers = { 'Authorization': `Bearer ${this.token}` };
+            
+            this.stompClient.connect(headers, 
+                async () => await this.onConnect(), 
+                (error) => this.onError(error)
+            );
+        } catch (error) {
+            console.error('WebSocket connection failed:', error);
+        }
+    }
+
+    async onConnect() {
+        console.log('WebSocket connected successfully');
+        await this.fetchUserChats();
+        for (const chat of this.userChats) {
+            this.stompClient.subscribe("/topic/chat/" + chat.id, 
+                (payload) => this.onMessageReceived(payload)
+            );
+        }
+        
+        Promise.all([
+            this.fetchUsers(),
+            this.fetchOnlineUsers()
+        ]).catch(error => console.error('Initialization error:', error));
+        
+        setInterval(() => this.fetchOnlineUsers(), 15000);
+    }
+
+    onError(error) {
+        console.error('WebSocket error:', error);
+        
+        if (error.headers?.message?.includes("Access is denied")) {
+            localStorage.clear();
+            window.location.href = '/';
+        }
+    }
+
+    async fetchUsers() {
+        try {
+            const response = await this.fetchWithAuth('/api/users');
+            this.allUsers = response;
+        } catch (error) {
+            console.error('Error fetching users:', error);
+        }
+    }
+
+    async fetchUserChats() {
+        try {
+            const chats = await this.fetchWithAuth('/api/chats');
+            this.userChats = chats.content;
+            this.displayChats(this.userChats);
+        } catch (error) {
+            console.error('Error fetching chats:', error);
+        }
+    }
+
+    async fetchOnlineUsers() {
+        try {
+            const onlineUsers = await this.fetchWithAuth('/api/users/online');
+            this.displayOnlineUsers(onlineUsers);
+        } catch (error) {
+            console.error('Error fetching online users:', error);
+        }
+    }
+
+    async fetchWithAuth(url) {
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${this.token}` }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        return response.json();
+    }
+
+    displayChats(chats) {
+        const chatsList = document.getElementById('chats-list');
+        if (!chatsList) return;
+        
+        chatsList.innerHTML = '';
+        
+        chats.forEach(chat => {
+            const participants = chat.participants
+                ?.map(p => p.user?.username)
+                ?.filter(u => u !== this.username) || [];
+            
+            const chatName = chat.isGroupChat ? chat.chatName : participants.join(', ');
+            const participantsText = chat.isGroupChat 
+                ? `${chat.participants?.length || 0} members` 
+                : 'Private chat';
+            
+            const chatElement = this.createChatElement(chat.id, chatName, participantsText);
+            chatsList.appendChild(chatElement);
+        });
+    }
+
+    createChatElement(chatId, chatName, participantsText) {
+        const div = document.createElement('div');
+        div.className = 'p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors chat-item';
+        div.dataset.chatId = chatId;
+        div.innerHTML = `
+            <div class="font-semibold text-slate-700 text-sm mb-1">${this.escapeHtml(chatName)}</div>
+            <div class="text-xs text-slate-500">${this.escapeHtml(participantsText)}</div>
+        `;
+        
+        div.addEventListener('click', () => this.selectChat(chatId, chatName));
+        return div;
+    }
+
+    selectChat(chatId, chatName) {
+        this.currentChatId = chatId;
+        
+        document.querySelectorAll('.chat-item').forEach(item => {
+            item.classList.remove('bg-purple-50', 'border-purple-200');
+            item.classList.add('border-gray-200');
+        });
+        
+        const selectedChat = document.querySelector(`[data-chat-id="${chatId}"]`);
+        if (selectedChat) {
+            selectedChat.classList.add('bg-purple-50', 'border-purple-200');
+            selectedChat.classList.remove('border-gray-200');
+        }
+        
+        document.getElementById('current-chat-info').textContent = `Chat: ${chatName}`;
+        
+        const textArea = document.getElementById('text');
+        const sendButton = document.getElementById('send');
+        
+        textArea.disabled = false;
+        textArea.placeholder = 'Type your message...';
+        sendButton.disabled = false;
+        document.getElementById('attach-file-btn').disabled = false;
+        
+        this.fetchChatMessages(chatId);
+    }
+
+    async fetchChatMessages(chatId) {
+        try {
+            const messagesDisplay = document.getElementById('messages-display');
+            if (messagesDisplay) messagesDisplay.innerHTML = '';
+            
+            let messages = await this.fetchWithAuth(`/api/chats/${chatId}/messages`);
+            messages = messages.content || messages;
+            messages.forEach(msg => this.displayMessage(msg));
+        } catch (error) {
+            console.error('Error fetching messages:', error);
+        }
+    }
+
+    displayMessage(msg) {
+        const messagesDisplay = document.getElementById('messages-display');
+        if (!messagesDisplay) return;
+        
+        const isOwn = msg.sender?.username === this.username;
+        const senderName = isOwn ? 'You' : msg.sender?.username;
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `flex ${isOwn ? 'justify-end' : 'justify-start'}`;
+        
+        let contentHtml = `
+            <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${isOwn ? 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white' : 'bg-gray-100 text-slate-700'}">
+                <div class="text-xs opacity-70 mb-1">${this.escapeHtml(senderName)}</div>
+        `;
+        
+        switch(msg.type) {
+            case 'IMAGE':
+                contentHtml += `<div class="mb-2">${this.escapeHtml(msg.contentText)}</div><img src="${msg.media.fileUrl}" alt="Image" class="max-w-full rounded">`;
+                break;
+            case 'FILE':
+                contentHtml += `<div><a href="${msg.media.fileUrl}" target="_blank" download class="underline">${this.escapeHtml(msg.contentText)}</a></div>`;
+                break;
+            case 'TEXT':
+            default:
+                contentHtml += `<div>${this.escapeHtml(msg.contentText)}</div>`;
+                break;
+        }
+
+        contentHtml += '</div>';
+        messageDiv.innerHTML = contentHtml;
+        
+        messagesDisplay.appendChild(messageDiv);
+        this.scrollToBottom();
+    }
+
+    onMessageReceived(payload) {
+        try {
+            const msg = JSON.parse(payload.body);
+
+            if (this.currentChatId && msg.chat.id == this.currentChatId) {
+                this.displayMessage(msg);
+            }
+            this.fetchUserChats();
+        } catch (error) {
+            console.error('Error processing received message:', error);
+        }
+    }
+
+    sendMessage() {
+        if (!this.currentChatId) {
+            alert("Please select a chat first.");
+            return;
+        }
+        
+        const textArea = document.getElementById('text');
+        const content = textArea.value.trim();
+        
+        if (!content) return;
+        
+        const message = {
+            sender: this.userId,
+            receiver: this.currentChatId,
+            content: content,
+            messageType: 'TEXT'
+        };
+        
+        try {
+            this.stompClient.send("/app/chat.message", {}, JSON.stringify(message));
+            textArea.value = '';
+        } catch (error) {
+            console.error('Error sending message:', error);
+            alert('Failed to send message. Please try again.');
+        }
+    }
+
+    async handleFileUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch('/api/files/upload', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${this.token}` },
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('File upload failed');
+            }
+
+            const fileUrl = await response.text();
+            
+            const messageType = file.type.startsWith('image/') ? 'IMAGE' : 'FILE';
+
+            const message = {
+                sender: this.userId,
+                receiver: this.currentChatId,
+                content: file.name,
+                fileUrl: fileUrl,
+                messageType: messageType
+            };
+
+            this.stompClient.send("/app/chat.file", {}, JSON.stringify(message));
+
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            alert('Failed to upload file.');
+        } finally {
+            event.target.value = '';
+        }
+    }
+
+    displayOnlineUsers(onlineUsers) {
+        const onlineUsersDiv = document.getElementById('online_users');
+        if (!onlineUsersDiv) return;
+        
+        onlineUsersDiv.innerHTML = '';
+        onlineUsers.forEach(user => {
+            const userDiv = document.createElement('div');
+            userDiv.className = 'flex items-center p-2 text-sm text-slate-600';
+            userDiv.innerHTML = `
+                <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                ${this.escapeHtml(user)}
+            `;
+            onlineUsersDiv.appendChild(userDiv);
+        });
+    }
+
+    scrollToBottom() {
+        const messagesContainer = document.getElementById('messages');
+        if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+}
+
+function goToCreateChat() {
+    window.location.href = '/create-chat';
+}
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    new ChatApplication();
+});
+</script>
+
+  <!-- Plugin scripts -->
+  <script src="../assets/js/plugins/perfect-scrollbar.min.js" async></script>
+  <script src="../assets/js/soft-ui-dashboard-tailwind.js?v=1.0.5" async></script>
+</body>
+</html>
