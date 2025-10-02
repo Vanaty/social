@@ -1,32 +1,34 @@
 package iranga.mg.social.controller;
 
-import iranga.mg.social.model.ExpoToken;
-import iranga.mg.social.model.OnlineUser;
-import iranga.mg.social.model.User;
-import iranga.mg.social.repository.ExpoTokenRepository;
-import iranga.mg.social.repository.OnlineUserRepository;
-import iranga.mg.social.repository.UserRepository;
-import iranga.mg.social.service.UserService;
+import java.util.List;
+import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import iranga.mg.social.dto.notif.ExpoTokenUpdate;
+import iranga.mg.social.model.OnlineUser;
+import iranga.mg.social.model.User;
+import iranga.mg.social.repository.OnlineUserRepository;
+import iranga.mg.social.repository.UserRepository;
+import iranga.mg.social.service.UserService;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-@RestController
 @RequestMapping("/api/users")
+@RestController
 @Tag(name = "User Management", description = "APIs for managing users")
 public class UserController {
+
+    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
     @Autowired
     private UserRepository userRepository;
@@ -44,8 +46,9 @@ public class UserController {
 
     @PostMapping("/expo/token")
     @Operation(summary = "Update token for push notifications")
-    public void updateExpoToken(@AuthenticationPrincipal UserDetails userDetails, @RequestBody String token) {
-        userService.saveExpoPushToken(userDetails.getUsername(), token);
+    public void updateExpoToken(@AuthenticationPrincipal UserDetails userDetails, @RequestBody ExpoTokenUpdate request) {
+        logger.info("Updating Expo token for user {}: {}", userDetails.getUsername(), request);
+        userService.saveExpoPushToken(userDetails.getUsername(), request.getToken());
     }
 
     @GetMapping("/info")

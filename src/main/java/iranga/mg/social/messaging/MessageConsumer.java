@@ -1,38 +1,24 @@
 package iranga.mg.social.messaging;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 
 import iranga.mg.social.config.RabbitConfig;
 import iranga.mg.social.dto.chat.ReadStatus;
 import iranga.mg.social.dto.chat.TypingStatus;
-import iranga.mg.social.model.Chat;
+import iranga.mg.social.dto.notif.NotificationDto;
 import iranga.mg.social.model.InstantChatMessage;
-import iranga.mg.social.model.Media;
 import iranga.mg.social.model.Message;
-import iranga.mg.social.model.Participant;
-import iranga.mg.social.model.User;
-import iranga.mg.social.repository.ChatRepository;
-import iranga.mg.social.repository.MessageRepository;
-import iranga.mg.social.repository.UserRepository;
-import iranga.mg.social.service.UserService;
-import iranga.mg.social.type.TypeMessage;
-import jakarta.transaction.Transactional;
+import iranga.mg.social.service.CallService;
+import iranga.mg.social.service.MessageService;
+import iranga.mg.social.service.NotificationService;
 
 @Component
 public class MessageConsumer {
@@ -41,18 +27,16 @@ public class MessageConsumer {
     
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
-    
-    @Autowired
-    private MessageRepository messageRepository;
-    
-    @Autowired
-    private UserRepository userRepository;
-    
-    @Autowired
-    private ChatRepository chatRepository;
 
     @Autowired
-    private UserService userService;
+    private CallService callService;
+
+    @Autowired
+    private MessageService messageService;
+
+    @Autowired
+    private NotificationService notificationService;
+    
 
     @RabbitListener(queues = RabbitConfig.CHAT_MESSAGING_QUEUE)
     public void handleChatMessage(InstantChatMessage instantMessage) {
@@ -61,13 +45,15 @@ public class MessageConsumer {
                        instantMessage.getSender(), instantMessage.getReceiver());
             
             // Save message to database
-            Message message = saveMessageToDatabase(instantMessage);
-            sendMessagePushNotification(message);
-            messagingTemplate.convertAndSend(
-                "/topic/chat/" + instantMessage.getReceiver(), 
-                message
-            );
-            
+            Message message = messageService.saveMessageToDatabase(instantMessage);
+            messageService.sendMessagePushNotification(message);
+            // Distribute message to chat participants
+            for (var participant : messageService.getChatParticipants(Long.parseLong(instantMessage.getReceiver()))) {
+                messagingTemplate.convertAndSend(
+                    "/topic/chat/" + participant.getUser().getId(), 
+                    message
+                );
+            }
             logger.info("Message processed and distributed successfully with ID: {}", message.getId());
             
         } catch (Exception e) {
@@ -78,9 +64,14 @@ public class MessageConsumer {
     @RabbitListener(queues = RabbitConfig.TYPING_STATUS_QUEUE)
     public void handleTypingStatus(TypingStatus status, @Header("amqp_receivedRoutingKey") String routingKey) {
         try {
-            String chatId = routingKey.substring("chat.typing.".length());
-            logger.info("Forwarding typing status for chat {}: {}", chatId, status.getUsername());
-            messagingTemplate.convertAndSend("/topic/chat/" + chatId + "/typing", status);
+            String userId = routingKey.substring("chat.typing.".length());
+            logger.info("Forwarding typing status for user {}: {}", userId, status.getUsername());
+
+            //Send to participants in the chat
+            for (var participant : messageService.getChatParticipants(Long.parseLong(userId))) {
+                messagingTemplate.convertAndSend("/topic/chat/" + participant.getUser().getId() + "/typing", status);
+            }
+
         } catch (Exception e) {
             logger.error("Failed to process typing status: {}", e.getMessage(), e);
         }
@@ -91,74 +82,82 @@ public class MessageConsumer {
         try {
             String chatId = routingKey.substring("chat.read.".length());
             logger.info("Forwarding read status for chat {}: message {}", chatId, status.getMessageId());
-            messagingTemplate.convertAndSend("/topic/chat/" + chatId + "/read", status);
+            for (var participant : messageService.getChatParticipants(Long.parseLong(chatId))) {
+                messagingTemplate.convertAndSend("/topic/chat/" + participant.getUser().getId() + "/read", status);
+            }
         } catch (Exception e) {
             logger.error("Failed to process read status: {}", e.getMessage(), e);
         }
     }
-    
-    private Message saveMessageToDatabase(InstantChatMessage instantMessage) {
+
+    @RabbitListener(queues = RabbitConfig.WEBRTC_CALL_OFFER_QUEUE)
+    public void handleCallOffer(iranga.mg.social.dto.webrtc.CallOfferDto callOffer) {
         try {
-            // Find sender
-            User sender = userRepository.findById(Long.parseLong(instantMessage.getSender()))
-                    .orElseThrow(() -> new RuntimeException("Sender not found"));
-            
-            // Find chat
-            Chat chat = chatRepository.findById(Long.parseLong(instantMessage.getReceiver()))
-                    .orElseThrow(() -> new RuntimeException("Chat not found"));
-            
-            // Create and save message
-            Message message = new Message();
-            message.setContentText(instantMessage.getContent());
-            message.setSender(sender);
-            message.setChat(chat);
-            message.setTimestamp(LocalDateTime.now());
-            message.setType(instantMessage.getType());
-            
-            if (instantMessage.getType() == TypeMessage.IMAGE || instantMessage.getType() == TypeMessage.FILE) {
-                Media media = new Media();
-                media.setFileName(instantMessage.getContent());
-                media.setThumbnailUrl(instantMessage.getThumbnailUrl());
-                media.setFileUrl(instantMessage.getFileUrl());
-                media.setMediaType(instantMessage.getType().name());
-                message.setMedia(media);
+            logger.info("Processing WebRTC call offer from {} to {}", 
+                       callOffer.getCallerId(), callOffer.getReceiverId());
+            callService.handleCallOfferNotification(callOffer);
+            callService.createCallSession(callOffer);
+            String canCallResult = callService.canCall(callOffer);
+            if (!canCallResult.equals("OK")) {
+                logger.info("Call cannot be placed: {}", canCallResult);
+                handleCallEnd(new iranga.mg.social.dto.webrtc.CallEndDto(
+                    callOffer.getCallId(),  
+                    callOffer.getReceiverId(), 
+                    canCallResult,
+                    LocalDateTime.now()
+                ));
             }
-            
-            return messageRepository.save(message);
-            
+            messagingTemplate.convertAndSend("/topic/call/offer/" + callOffer.getReceiverId(), callOffer);
         } catch (Exception e) {
-            logger.error("Failed to save message to database: {}", e.getMessage(), e);
-            throw new RuntimeException("Database save failed", e);
+            logger.error("Failed to process call offer: {}", e.getMessage(), e);
         }
     }
 
-    @Transactional
-    private void sendMessagePushNotification(Message message) {
-        Chat chat = message.getChat();
-        List<Participant> participants = chat.getParticipants();
-        for (Participant user : participants) {
-            String content = message.getContentText();
-            String token = userService.getExpoPushToken(user.getUser().getId());
-            if (token == null || token.isEmpty()) {
-                logger.warn("No Expo token found for user ID {}", user.getUser().getId());
-                continue;
-            }
-            String url = "https://exp.host/--/api/v2/push/send";
+    @RabbitListener(queues = RabbitConfig.WEBRTC_CALL_CANDIDATE_QUEUE)
+    public void handleCallCandidate(iranga.mg.social.dto.webrtc.IceCandidateDto iceCandidate) {
+        try {
+            logger.info("Processing WebRTC ICE candidate for call {}", iceCandidate.getCallId());
+            Long otherParticipantId = callService.getOtherParticipantId(iceCandidate.getCallId(), iceCandidate.getUserId());
+            messagingTemplate.convertAndSend("/topic/call/candidate/" + otherParticipantId, iceCandidate);
+        } catch (Exception e) {
+            logger.error("Failed to process ICE candidate: {}", e.getMessage(), e);
+        }
+    }
 
-            RestTemplate restTemplate = new RestTemplate();
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("to", token);
-            payload.put("sound", "default");
-            payload.put("title", "New message from " + message.getSender().getUsername());
-            payload.put("body", content.length() > 50 ? content.substring(0, 50) + "..." : content);
-            payload.put("data", Map.of("screen", "Chat", "sender", user.getUser().getUsername(),"chat", message.getChat().getId()));
+    @RabbitListener(queues = RabbitConfig.WEBRTC_CALL_ANSWER_QUEUE)
+    public void handleCallAnswer(iranga.mg.social.dto.webrtc.CallAnswerDto callAnswer) {
+        try {
+            logger.info("Processing WebRTC call answer for call {}",  callAnswer.getCallId());
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
+            callService.updateStatus(callAnswer.getCallId(), iranga.mg.social.model.CallSession.CallStatus.CONNECTED);
+            Long otherParticipantId = callService.getOtherParticipantId(callAnswer.getCallId(), callAnswer.getUserId());
+            messagingTemplate.convertAndSend("/topic/call/answer/" + otherParticipantId, callAnswer);
+        } catch (Exception e) {
+            logger.error("Failed to process call answer: {}", e.getMessage(), e);
+        }
+    }
 
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
-            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-            logger.info("Expo response: {}", response.getBody());
+    @RabbitListener(queues = RabbitConfig.WEBRTC_CALL_END_QUEUE)
+    public void handleCallEnd(iranga.mg.social.dto.webrtc.CallEndDto callEnd) {
+        try {
+            logger.info("Processing WebRTC call end for call {}", callEnd.getCallId());
+            callService.updateStatus(callEnd.getCallId(), iranga.mg.social.model.CallSession.CallStatus.ENDED);
+            Long otherParticipantId = callService.getOtherParticipantId(callEnd.getCallId(), callEnd.getUserId());
+            messagingTemplate.convertAndSend("/topic/call/end/" + otherParticipantId, callEnd);
+            // messagingTemplate.convertAndSend("/topic/call/end/" + callEnd.getCallerId(), callEnd);
+        } catch (Exception e) {
+            logger.error("Failed to process call end: {}", e.getMessage(), e);
+        }
+    }
+
+    @RabbitListener(queues = RabbitConfig.NOTIFICATION_QUEUE)
+    public void handleNotification(NotificationDto notification, @Header("amqp_receivedRoutingKey") String routingKey) {
+        try {
+            logger.info("Processing notification for all users: {}", notification.getBody());
+            Long userId = Long.parseLong(routingKey.substring("notification.".length()));
+            notificationService.sendNotification(userId, notification);
+        } catch (Exception e) {
+            logger.error("Failed to process notification: {}", e.getMessage(), e);
         }
     }
 }

@@ -27,6 +27,12 @@ public class RabbitConfig {
     public final static String NOTIFICATION_EXCHANGE = "notification_exchange";
     public final static String TYPING_STATUS_QUEUE = "typing_status_queue";
     public final static String READ_STATUS_QUEUE = "read_status_queue";
+    public final static String WEBRTC_CALL_QUEUE = "webrtc_call_queue";
+    public final static String WEBRTC_CALL_EXCHANGE = "webrtc_call_exchange";
+    public final static String WEBRTC_CALL_OFFER_QUEUE = "webrtc_call_offer_queue";
+    public final static String WEBRTC_CALL_ANSWER_QUEUE = "webrtc_call_answer_queue";
+    public final static String WEBRTC_CALL_END_QUEUE = "webrtc_call_end_queue";
+    public final static String WEBRTC_CALL_CANDIDATE_QUEUE = "webrtc_call_candidate_queue";
 
 	@Bean
 	public Queue createChatMessagingQueue() {
@@ -97,6 +103,64 @@ public class RabbitConfig {
         return BindingBuilder.bind(createReadStatusQueue())
                 .to(createOutgoingExchange())
                 .with("chat.read.*");
+    }
+
+    @Bean
+    public Queue createWebRTCCallQueue() {
+        return QueueBuilder.durable(WEBRTC_CALL_QUEUE).build();
+    }
+
+    @Bean
+    public TopicExchange createWebRTCCallExchange() {
+        return ExchangeBuilder.topicExchange(WEBRTC_CALL_EXCHANGE).build();
+    }
+
+    @Bean
+    public Queue createWebRTCCallOfferQueue() {
+        return QueueBuilder.durable(WEBRTC_CALL_OFFER_QUEUE).build();
+    }
+
+    @Bean
+    public Queue createWebRTCCallAnswerQueue() {
+        return QueueBuilder.durable(WEBRTC_CALL_ANSWER_QUEUE).build();
+    }
+
+    @Bean
+    public Queue createWebRTCCallEndQueue() {
+        return QueueBuilder.durable(WEBRTC_CALL_END_QUEUE).build();
+    }
+
+    @Bean
+    public Queue createWebRTCCallCandidateQueue() {
+        return QueueBuilder.durable(WEBRTC_CALL_CANDIDATE_QUEUE).build();
+    }
+
+    @Bean
+    public Binding createWebRTCCallCandidateBinding() {
+        return BindingBuilder.bind(createWebRTCCallCandidateQueue())
+                .to(createWebRTCCallExchange())
+                .with("webrtc.call.candidate");
+    }
+
+    @Bean
+    public Binding createWebRTCCallOfferBinding() {
+        return BindingBuilder.bind(createWebRTCCallOfferQueue())
+                .to(createWebRTCCallExchange())
+                .with("webrtc.call.offer");
+    }
+
+    @Bean
+    public Binding createWebRTCCallAnswerBinding() {
+        return BindingBuilder.bind(createWebRTCCallAnswerQueue())
+                .to(createWebRTCCallExchange())
+                .with("webrtc.call.answer");
+    }
+
+    @Bean
+    public Binding createWebRTCCallEndBinding() {
+        return BindingBuilder.bind(createWebRTCCallEndQueue())
+                .to(createWebRTCCallExchange())
+                .with("webrtc.call.end");
     }
 
 	@Bean

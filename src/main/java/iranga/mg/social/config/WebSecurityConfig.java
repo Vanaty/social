@@ -30,7 +30,7 @@ public class WebSecurityConfig {
 	@Bean
 	// @Order(1)
 	public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
-		http.securityMatcher("/api/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+		http.securityMatcher("/api/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/webrtc-signaling/**")
 			.csrf(csrf -> csrf.disable())
 			.cors().and()
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -39,6 +39,7 @@ public class WebSecurityConfig {
 				.requestMatchers("/api/auth/**").permitAll()
 				.requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
 				.requestMatchers("/api/files/download/**").permitAll()
+				.requestMatchers("/webrtc-signaling/**").permitAll()
 				.anyRequest().authenticated()
 			);
 
