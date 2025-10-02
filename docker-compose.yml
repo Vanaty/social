@@ -6,7 +6,7 @@ services:
       - "5672:5672"
       - "15672:15672"
     networks:
-      - mon_reseau_app # Ajout du réseau
+      - social # Ajout du réseau
       
   mariadb:
     image: mariadb:10.11
@@ -21,7 +21,7 @@ services:
     volumes:
       - mariadb_data:/var/lib/mysql
     networks:
-      - mon_reseau_app # Ajout du réseau
+      - social # Ajout du réseau
       
   coturn:
     image: instrumentisto/coturn:latest
@@ -38,7 +38,7 @@ services:
       - TURN_PASSWORD=socialapp123
     command: ["-c", "/etc/coturn/turnserver.conf"]
     networks:
-      - mon_reseau_app # Ajout du réseau
+      - social # Ajout du réseau
       
   maven-build:
     image: maven:3.9-eclipse-temurin-17
@@ -53,12 +53,12 @@ services:
       - mariadb
       - coturn
     networks:
-      - mon_reseau_app # Ajout du réseau
+      - social # Ajout du réseau
 
 volumes:
   mariadb_data:
 
 # --- Section pour la définition des réseaux ---
 networks:
-  mon_reseau_app:
+  social:
     driver: bridge # Le type de réseau par défaut, suffisant pour la plupart des cas.
