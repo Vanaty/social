@@ -5,6 +5,9 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    networks:
+      - mon_reseau_app # Ajout du réseau
+      
   mariadb:
     image: mariadb:10.11
     container_name: mariadb_docker
@@ -14,9 +17,48 @@ services:
       MARIADB_USER: iranga
       MARIADB_PASSWORD: iranga
     ports:
-      - "3306:3306"  # ⚠️ 3307 sur l'hôte, mappé à 3306 dans le conteneur
+      - "3306:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
+    networks:
+      - mon_reseau_app # Ajout du réseau
+      
+  coturn:
+    image: instrumentisto/coturn:latest
+    container_name: coturn
+    restart: unless-stopped
+    ports:
+      - "3478:3478/udp" 
+      - "3478:3478/tcp" 
+      - "49160-49200:49160-49200/udp" 
+    volumes:
+      - ./coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    environment:
+      - TURN_USERNAME=socialapp
+      - TURN_PASSWORD=socialapp123
+    command: ["-c", "/etc/coturn/turnserver.conf"]
+    networks:
+      - mon_reseau_app # Ajout du réseau
+      
+  maven-build:
+    image: maven:3.9-eclipse-temurin-17
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: ["mvn", "spring-boot:run", "-Dspring-boot.run.arguments=--spring.profiles.active=dev"]
+    ports:
+      - "8080:8080"
+    depends_on:
+      - rabbitmq
+      - mariadb
+      - coturn
+    networks:
+      - mon_reseau_app # Ajout du réseau
 
 volumes:
   mariadb_data:
+
+# --- Section pour la définition des réseaux ---
+networks:
+  mon_reseau_app:
+    driver: bridge # Le type de réseau par défaut, suffisant pour la plupart des cas.

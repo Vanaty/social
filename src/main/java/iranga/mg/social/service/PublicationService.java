@@ -29,6 +29,9 @@ public class PublicationService {
     
     @Autowired
     private CommentRepository commentRepository;
+
+    @Autowired
+    private NotificationService notificationService;
     
     public Publication createPublication(String title, String content, String imageUrl, User author) {
         Publication publication = new Publication();
@@ -38,7 +41,7 @@ public class PublicationService {
         publication.setAuthor(author);
         publication.setCreatedAt(LocalDateTime.now());
         publication.setUpdatedAt(LocalDateTime.now());
-        
+
         return publicationRepository.save(publication);
     }
     

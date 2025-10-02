@@ -116,6 +116,18 @@ public class PublicationController {
         Like result = publicationService.toggleLike(id, user);
         return ResponseEntity.ok(result != null ? "liked" : "unliked");
     }
+
+    @DeleteMapping("/{id}/like")
+    @Operation(summary = "Unlike a publication")
+    public ResponseEntity<String> unLike(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = userRepository.findUserByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        Like result = publicationService.toggleLike(id, user);
+        return ResponseEntity.ok(result != null ? "liked" : "unliked");
+    }
     
     @PostMapping("/{id}/comments")
     @Operation(summary = "Add a comment to a publication")

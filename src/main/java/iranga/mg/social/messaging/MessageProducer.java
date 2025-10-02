@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import iranga.mg.social.config.RabbitConfig;
 import iranga.mg.social.dto.chat.ReadStatus;
 import iranga.mg.social.dto.chat.TypingStatus;
+import iranga.mg.social.dto.notif.NotificationDto;
 import iranga.mg.social.model.InstantChatMessage;
 
 @Component
@@ -32,12 +33,12 @@ public class MessageProducer {
         }
     }
     
-    public void sendTypingStatus(Long chatId, TypingStatus status) {
+    public void sendTypingStatus(Long userId, TypingStatus status) {
         try {
-            logger.info("Sending typing status for chat {} by user {}", chatId, status.getUsername());
+            logger.info("Sending typing status for user {} in chat {}", userId, status.getChatId());
             rabbitTemplate.convertAndSend(
                 RabbitConfig.OUTGOING_EXCHANGE,
-                "chat.typing." + chatId,
+                "chat.typing." + userId,
                 status
             );
         } catch (Exception e) {
@@ -45,12 +46,12 @@ public class MessageProducer {
         }
     }
 
-    public void sendReadStatus(Long chatId, ReadStatus status) {
+    public void sendReadStatus(Long userId, ReadStatus status) {
         try {
-            logger.info("Sending read status for chat {} for message {}", chatId, status.getMessageId());
+            logger.info("Sending read status for user {} for message {}", userId, status.getMessageId());
             rabbitTemplate.convertAndSend(
                 RabbitConfig.OUTGOING_EXCHANGE,
-                "chat.read." + chatId,
+                "chat.read." + userId,
                 status
             );
         } catch (Exception e) {
@@ -58,12 +59,64 @@ public class MessageProducer {
         }
     }
 
-    public void sendNotification(String userId, String notification) {
+    public void sendCallOffer(iranga.mg.social.dto.webrtc.CallOfferDto callOffer) {
+        try {
+            logger.info("Sending call offer from {} to {}", callOffer.getCallerId(), callOffer.getReceiverId());
+            rabbitTemplate.convertAndSend(
+                RabbitConfig.WEBRTC_CALL_EXCHANGE,
+                "webrtc.call.offer",
+                callOffer
+            );
+        } catch (Exception e) {
+            logger.error("Failed to send call offer: {}", e.getMessage(), e);
+        }
+    }
+
+    public void sendIceCandidate(iranga.mg.social.dto.webrtc.IceCandidateDto iceCandidate) {
+        try {
+            logger.info("Sending ICE candidate for call {}", iceCandidate.getCallId());
+            rabbitTemplate.convertAndSend(
+                RabbitConfig.WEBRTC_CALL_EXCHANGE,
+                "webrtc.call.candidate",
+                iceCandidate
+            );
+        } catch (Exception e) {
+            logger.error("Failed to send ICE candidate: {}", e.getMessage(), e);
+        }
+    }
+
+    public void sendCallAnswer(iranga.mg.social.dto.webrtc.CallAnswerDto callAnswer) {
+        try {
+            logger.info("Sending call answer for call {}", callAnswer.getCallId());
+            rabbitTemplate.convertAndSend(
+                RabbitConfig.WEBRTC_CALL_EXCHANGE,
+                "webrtc.call.answer",
+                callAnswer
+            );
+        } catch (Exception e) {
+            logger.error("Failed to send call answer: {}", e.getMessage(), e);
+        }
+    }
+
+    public void sendCallEnd(iranga.mg.social.dto.webrtc.CallEndDto callEnd) {
+        try {
+            logger.info("Sending call end for call {}", callEnd.getCallId());
+            rabbitTemplate.convertAndSend(
+                RabbitConfig.WEBRTC_CALL_EXCHANGE,
+                "webrtc.call.end",
+                callEnd
+            );
+        } catch (Exception e) {
+            logger.error("Failed to send call end: {}", e.getMessage(), e);
+        }
+    }
+
+    public void sendNotification(Long userId, NotificationDto notificationDto) {
         try {
             rabbitTemplate.convertAndSend(
                 RabbitConfig.OUTGOING_EXCHANGE,
                 "notification." + userId,
-                notification
+                notificationDto
             );
         } catch (Exception e) {
             logger.error("Failed to send notification: {}", e.getMessage(), e);

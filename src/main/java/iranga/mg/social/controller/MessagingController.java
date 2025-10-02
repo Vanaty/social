@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import iranga.mg.social.dto.chat.ReadStatus;
 import iranga.mg.social.dto.chat.TypingStatus;
+import iranga.mg.social.dto.notif.NotificationDto;
 import iranga.mg.social.messaging.MessageProducer;
 import iranga.mg.social.model.Chat;
 import iranga.mg.social.model.InstantChatMessage;
@@ -85,22 +86,31 @@ public class MessagingController {
         }
     }
     
-    @MessageMapping("/chat/{chatId}/typing")
-    public void sendTypingStatus(@DestinationVariable Long chatId,
+    @MessageMapping("/chat/{userId}/typing")
+    public void sendTypingStatus(@DestinationVariable Long userId,
                                        TypingStatus status,
                                        Principal principal) {
         status.setUsername(principal.getName());
-        messageProducer.sendTypingStatus(chatId, status);
+        messageProducer.sendTypingStatus(userId, status);
     }
 
-    @MessageMapping("/chat/{chatId}/read")
-    public void markMessageAsRead(@DestinationVariable Long chatId,
+    @MessageMapping("/chat/{userId}/read")
+    public void markMessageAsRead(@DestinationVariable Long userId,
                                  ReadStatus readStatus,
                                  Principal principal) {
         User u  = userRepository.findUserByUsername(principal.getName())
                 .orElseThrow(() -> new RuntimeException("User not found: " + principal.getName()));
         messageService.markMessageAsRead(readStatus.getMessageId(), u);
 
-        messageProducer.sendReadStatus(chatId, readStatus);
+        messageProducer.sendReadStatus(userId, readStatus);
+    }
+
+    @MessageMapping("/notification/{senderId}")
+    public void sendNotification(@DestinationVariable Long senderId,
+                                  NotificationDto notificationDto,
+                                  Principal principal) {
+        User u  = userRepository.findUserByUsername(principal.getName())
+                .orElseThrow(() -> new RuntimeException("User not found: " + principal.getName()));
+        messageProducer.sendNotification(senderId, notificationDto);
     }
 }

@@ -299,13 +299,71 @@ class ChatApplication {
         
         const textArea = document.getElementById('text');
         const sendButton = document.getElementById('send');
+        const videoCallButton = document.getElementById('video-call-btn');
         
         textArea.disabled = false;
         textArea.placeholder = 'Type your message...';
         sendButton.disabled = false;
         document.getElementById('attach-file-btn').disabled = false;
         
+        // Enable video call button
+        if (videoCallButton) {
+            videoCallButton.disabled = false;
+        }
+        
         this.fetchChatMessages(chatId);
+    }
+
+    async initiateVideoCall() {
+        if (!this.currentChatId || !this.webrtcConfig) {
+            alert('Cannot start video call: No chat selected or WebRTC not configured');
+            return;
+        }
+
+        try {
+            // Get chat participants (excluding current user)
+            const chat = this.userChats.find(c => c.id == this.currentChatId);
+            if (!chat) {
+                alert('Chat not found');
+                return;
+            }
+
+            const otherParticipants = chat.participants
+                ?.filter(p => p.user.username !== this.username);
+            
+            if (!otherParticipants || otherParticipants.length === 0) {
+                alert('No other participants in this chat');
+                return;
+            }
+
+            // For now, take the first participant (private chat scenario)
+            const receiver = otherParticipants[0].user;
+            
+            console.log('Initiating video call to:', receiver.username);
+            
+            // Here you would create the actual WebRTC peer connection
+            // and send the offer through WebSocket
+            const callId = this.generateCallId();
+            const callData = {
+                callId: callId,
+                receiverId: receiver.id,
+                type: 'video',
+                offer: {} // This would be the actual SDP offer
+            };
+
+            // Send call offer via WebSocket
+            this.stompClient.send("/app/call/offer", {}, JSON.stringify(callData));
+            
+            alert(`Video call initiated to ${receiver.username}. Call ID: ${callId}`);
+            
+        } catch (error) {
+            console.error('Error initiating video call:', error);
+            alert('Failed to start video call');
+        }
+    }
+
+    generateCallId() {
+        return 'call_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     }
 
     async fetchChatMessages(chatId) {

@@ -8,6 +8,7 @@ import lombok.Setter;
 @Setter
 @Getter
 public class ReadStatus {
+    private Long chatId;
     private Long messageId;
     private String username;
     // getters/setters

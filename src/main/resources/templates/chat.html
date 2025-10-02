@@ -86,6 +86,8 @@ class ChatApplication {
         this.allUsers = [];
         this.socket = null;
         this.stompClient = null;
+        this.webrtcConfig = null;
+        this.webrtcConnection = null;
         
         this.init();
     }
@@ -99,6 +101,17 @@ class ChatApplication {
         document.getElementById('username').textContent = this.username;
         this.bindEvents();
         this.connectWebSocket();
+        this.initWebRTC();
+    }
+
+    async initWebRTC() {
+        try {
+            const response = await this.fetchWithAuth('/api/webrtc/config');
+            this.webrtcConfig = response;
+            console.log('WebRTC configuration loaded:', this.webrtcConfig);
+        } catch (error) {
+            console.error('Failed to load WebRTC configuration:', error);
+        }
     }
 
     bindEvents() {
@@ -117,6 +130,49 @@ class ChatApplication {
 
         attachButton?.addEventListener('click', () => fileInput.click());
         fileInput?.addEventListener('change', (e) => this.handleFileUpload(e));
+        
+        // Add video call button functionality
+        this.addVideoCallButton();
+    }
+
+    addVideoCallButton() {
+        const messageForm = document.getElementById('message-form');
+        const videoCallButton = document.createElement('button');
+        videoCallButton.id = 'video-call-btn';
+        videoCallButton.innerHTML = '📹';
+        videoCallButton.title = 'Start Video Call';
+        videoCallButton.disabled = true;
+        videoCallButton.style.marginRight = '10px';
+        
+        videoCallButton.addEventListener('click', () => this.initiateVideoCall());
+        
+        const attachButton = document.getElementById('attach-file-btn');
+        messageForm.insertBefore(videoCallButton, attachButton);
+    }
+
+    async initiateVideoCall() {
+        if (!this.currentChatId || !this.webrtcConfig) {
+            alert('Cannot start video call: No chat selected or WebRTC not configured');
+            return;
+        }
+
+        try {
+            console.log('Initiating video call with WebRTC config:', this.webrtcConfig);
+            // Here you would implement the actual WebRTC connection logic
+            // For now, just show the available ICE servers
+            const iceServers = this.webrtcConfig.iceServers.map(server => ({
+                urls: server.urls,
+                username: server.username,
+                credential: server.credential
+            }));
+            
+            console.log('Available ICE servers:', iceServers);
+            alert('Video call feature ready! Check console for ICE servers configuration.');
+            
+        } catch (error) {
+            console.error('Error initiating video call:', error);
+            alert('Failed to start video call');
+        }
     }
 
     connectWebSocket() {
