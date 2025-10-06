@@ -14,8 +14,10 @@ import iranga.mg.social.config.RabbitConfig;
 import iranga.mg.social.dto.chat.ReadStatus;
 import iranga.mg.social.dto.chat.TypingStatus;
 import iranga.mg.social.dto.notif.NotificationDto;
+import iranga.mg.social.model.Chat;
 import iranga.mg.social.model.InstantChatMessage;
 import iranga.mg.social.model.Message;
+import iranga.mg.social.model.Participant;
 import iranga.mg.social.service.CallService;
 import iranga.mg.social.service.MessageService;
 import iranga.mg.social.service.NotificationService;
@@ -58,6 +60,23 @@ public class MessageConsumer {
             
         } catch (Exception e) {
             logger.error("Failed to process message: {}", e.getMessage(), e);
+        }
+    }
+
+    @RabbitListener(queues = RabbitConfig.CHAT_CREATED_QUEUE)
+    public void handleChatCreated(Chat chat) {
+        try {
+            logger.info("Processing chat created event for chat ID {}", chat.getId());
+            // Notify all participants about the new chat
+            for (Participant participant : chat.getParticipants()) {
+                messagingTemplate.convertAndSend(
+                    "/topic/chat/" + participant.getUser().getId() + "/newchat",
+                    chat
+                );
+            }
+            logger.info("Chat created event processed successfully for chat ID: {}", chat.getId());
+        } catch (Exception e) {
+            logger.error("Failed to process chat created event: {}", e.getMessage(), e);
         }
     }
 

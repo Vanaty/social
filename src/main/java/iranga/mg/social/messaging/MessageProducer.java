@@ -10,6 +10,7 @@ import iranga.mg.social.config.RabbitConfig;
 import iranga.mg.social.dto.chat.ReadStatus;
 import iranga.mg.social.dto.chat.TypingStatus;
 import iranga.mg.social.dto.notif.NotificationDto;
+import iranga.mg.social.model.Chat;
 import iranga.mg.social.model.InstantChatMessage;
 
 @Component
@@ -32,7 +33,20 @@ public class MessageProducer {
             logger.error("Failed to send message: {}", e.getMessage(), e);
         }
     }
-    
+
+    public void sendChatCreated(Chat chat) {
+        try {
+            logger.info("Sending chat created event {}", chat.getChatName());
+            rabbitTemplate.convertAndSend(
+                RabbitConfig.OUTGOING_EXCHANGE,
+                "chat.created",
+                chat
+            );
+        } catch (Exception e) {
+            logger.error("Failed to send chat created event: {}", e.getMessage(), e);
+        }
+    }
+
     public void sendTypingStatus(Long userId, TypingStatus status) {
         try {
             logger.info("Sending typing status for user {} in chat {}", userId, status.getChatId());

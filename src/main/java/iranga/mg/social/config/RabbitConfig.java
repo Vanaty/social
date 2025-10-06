@@ -20,6 +20,7 @@ import org.springframework.context.annotation.Configuration;
 public class RabbitConfig {
 
 	public final static String CHAT_MESSAGING_QUEUE = "chat_messaging_queue";
+    public final static String CHAT_CREATED_QUEUE = "chat_created_queue";
 	public final static String INCOMING_EXCHANGE = "incoming_exchange";
 	public final static String OUTGOING_EXCHANGE = "outgoing_exchange";
     public final static String NOTIFICATION_QUEUE = "notification_queue";
@@ -37,6 +38,11 @@ public class RabbitConfig {
 	@Bean
 	public Queue createChatMessagingQueue() {
 		return QueueBuilder.durable(CHAT_MESSAGING_QUEUE).build();
+	}
+
+    @Bean
+	public Queue createChatCreatedQueue() {
+		return QueueBuilder.durable(CHAT_CREATED_QUEUE).build();
 	}
 
 	@Bean
@@ -79,6 +85,13 @@ public class RabbitConfig {
         return BindingBuilder.bind(createChatMessagingQueue())
                 .to(createOutgoingExchange())
                 .with("chat.message");
+    }
+
+    @Bean
+    public Binding createChatCreatedBinding() {
+        return BindingBuilder.bind(createChatCreatedQueue())
+                .to(createOutgoingExchange())
+                .with("chat.created");
     }
 
     @Bean

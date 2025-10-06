@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import iranga.mg.social.exception.AccessGranted;
+import iranga.mg.social.messaging.MessageProducer;
 import iranga.mg.social.model.Chat;
 import iranga.mg.social.model.Message;
 import iranga.mg.social.model.Participant;
@@ -26,6 +27,9 @@ public class ChatService {
 
     @Autowired
     private MessageService messageService;
+
+    @Autowired
+    private MessageProducer messageProducer;
 
     public Chat createPrivateChat(List<User> users) {
         if (users.size() != 2) {
@@ -52,8 +56,9 @@ public class ChatService {
             participant.setIsNotifActive(true);
             chat.getParticipants().add(participant);
         }
-        
-        return chatRepository.save(chat);
+        chat = chatRepository.save(chat);
+        messageProducer.sendChatCreated(chat);
+        return chat;
     }
 
     public Chat createGroupChat(String chatName, User admin, List<User> participants) {
@@ -82,8 +87,9 @@ public class ChatService {
                 chat.getParticipants().add(participant);
             }
         }
-        
-        return chatRepository.save(chat);
+        chat = chatRepository.save(chat);
+        messageProducer.sendChatCreated(chat);
+        return chat;
     }
 
     @Transactional(readOnly = true)
