@@ -1,6 +1,7 @@
 package iranga.mg.social.model;
 
 import java.time.Instant;
+import java.util.List;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

@@ -20,4 +20,11 @@ public class PublicationConsumer {
         messagingTemplate.convertAndSend("/topic/publications", publication);
         // Add your processing logic here
     }
+
+    @RabbitListener(queues = RabbitConfig.COMMENT_QUEUE)
+    public void handleCommentMessage(Object comment) {
+        logger.info("Received comment message: {}", comment);
+        messagingTemplate.convertAndSend("/topic/comments", comment);
+        // Add your processing logic here
+    }
 }

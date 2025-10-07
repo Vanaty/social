@@ -21,26 +21,28 @@ public class NotificationService {
     private UserService userService;
 
     public void sendNotification(String userName, ExpoNotification notification) {
-        String expoPushToken = userService.getExpoPushToken(userName);
-        if (expoPushToken == null || expoPushToken.isBlank()) {
+        List<String> expoPushToken = userService.getExpoPushToken(userName);
+        if (expoPushToken == null || expoPushToken.isEmpty()) {
             logger.warn("No Expo push token found for user: {}", userName);
             return;
         }
-        notification.setTo(expoPushToken);
+        for (String token : expoPushToken) {
+            notification.setTo(token);
 
-        String url = "https://exp.host/--/api/v2/push/send";
-        RestTemplate restTemplate = new RestTemplate();
+            String url = "https://exp.host/--/api/v2/push/send";
+            RestTemplate restTemplate = new RestTemplate();
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
 
-        HttpEntity<ExpoNotification> request = new HttpEntity<>(notification, headers);
-        ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+            HttpEntity<ExpoNotification> request = new HttpEntity<>(notification, headers);
+            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
 
-        if (response.getStatusCode().is2xxSuccessful()) {
-            logger.info("Notification sent successfully: {}", response.getBody());
-        } else {
-            logger.error("Failed to send notification: {}", response.getBody());
+            if (response.getStatusCode().is2xxSuccessful()) {
+                logger.info("Notification sent successfully: {}", response.getBody());
+            } else {
+                logger.error("Failed to send notification: {}", response.getBody());
+            }
         }
     }
 

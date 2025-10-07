@@ -130,8 +130,10 @@ public class PublicationService {
         comment.setContent(content);
         comment.setAuthor(author);
         comment.setPublication(publication);
-        
-        return commentRepository.save(comment);
+
+        comment = commentRepository.save(comment);
+        publicationProducer.sendComment(comment);
+        return comment;
     }
     
     @Transactional(readOnly = true)

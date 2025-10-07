@@ -1,5 +1,6 @@
 package iranga.mg.social.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -20,11 +21,15 @@ public class UserService {
     private OnlineUserRepository onlineUserRepository;
     private ExpoTokenRepository expoTokenRepository;
 
-    public String getExpoPushToken(Long userId) {
-        return expoTokenRepository.findByUserId(userId).orElse(new ExpoToken()).getToken();
+    public List<String> getExpoPushToken(Long userId) {
+        return expoTokenRepository.findByUserId(userId)
+                .orElse(List.of())
+                .stream()
+                .map(ExpoToken::getToken)
+                .toList();
     }
 
-    public String getExpoPushToken(String username) {
+    public List<String> getExpoPushToken(String username) {
         Long userId = userRepository.findUserByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"))
                 .getId();
@@ -38,11 +43,21 @@ public class UserService {
                 .toList();
     }
 
+    @Transactional
     public void saveExpoPushToken(String username, String token) {
+        // First, find the user by username to get the userId
         Long userId = userRepository.findUserByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"))
                 .getId();
-        ExpoToken existingToken = expoTokenRepository.findByUserId(userId).orElse(new ExpoToken());
+        
+        //Delete old tokens for the user
+        LocalDateTime oneMonthAgo = LocalDateTime.now().minusMonths(1);
+        expoTokenRepository.findOldTokenByUserId(userId, oneMonthAgo).ifPresent(oldTokens -> {
+            expoTokenRepository.deleteAll(oldTokens);
+        });
+        // Check if the token already exists for the user
+        ExpoToken existingToken = expoTokenRepository.findByToken(token)
+                .orElse(new ExpoToken());
         if(token != null && !token.isBlank()) {
             existingToken.setToken(token);
             existingToken.setUser(userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found")));

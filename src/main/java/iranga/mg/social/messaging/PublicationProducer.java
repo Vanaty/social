@@ -17,4 +17,9 @@ public class PublicationProducer {
         logger.info("Sending publication message: {}", publication);
         rabbitTemplate.convertAndSend(RabbitConfig.PUBLICATION_EXCHANGE, "publication.new", publication);
     }
+
+    public void sendComment(Object comment) {
+        logger.info("Sending comment message: {}", comment);
+        rabbitTemplate.convertAndSend(RabbitConfig.COMMENT_EXCHANGE, "comment.new", comment);
+    }
 }
