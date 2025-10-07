@@ -1,6 +1,7 @@
 package iranga.mg.social.service;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -55,7 +56,8 @@ public class PublicationService {
     public void sendNotification(Publication publication) {
         NotificationDto notification = new NotificationDto();
         notification.setTitle("Nouvelle publication de " + publication.getAuthor().getUsername());
-        notification.setBody(publication.getTitle());
+        notification.setBody(publication.getTitle().length() > 50 ? publication.getTitle().substring(0, 50) + "..." : publication.getTitle());
+        notification.setData(Map.of("type", "publication", "sender", publication.getAuthor().getUsername(), "publicationId", publication.getId()));
         notificationService.sendNotification(publication.getAuthor().getId(), notification);
     }
     
