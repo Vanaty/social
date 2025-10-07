@@ -66,9 +66,9 @@ public class PublicationController {
                 .orElseThrow(() -> new RuntimeException("User not found"));
         
         Publication publication = publicationService.createPublication(
-            request.getTitle(), 
-            request.getContent(), 
-            request.getImageUrl(), 
+            request.getTitle(),
+            request.getContent(),
+            request.getImageUrl(),
             author
         );
         return ResponseEntity.ok(publication);

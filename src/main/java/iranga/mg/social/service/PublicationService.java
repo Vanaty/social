@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import iranga.mg.social.dto.PublicationDTO;
+import iranga.mg.social.dto.notif.NotificationDto;
+import iranga.mg.social.messaging.PublicationProducer;
 import iranga.mg.social.model.Comment;
 import iranga.mg.social.model.Like;
 import iranga.mg.social.model.Publication;
@@ -32,6 +34,9 @@ public class PublicationService {
 
     @Autowired
     private NotificationService notificationService;
+
+    @Autowired
+    private PublicationProducer publicationProducer;
     
     public Publication createPublication(String title, String content, String imageUrl, User author) {
         Publication publication = new Publication();
@@ -42,7 +47,16 @@ public class PublicationService {
         publication.setCreatedAt(LocalDateTime.now());
         publication.setUpdatedAt(LocalDateTime.now());
 
+        publicationProducer.sendPublication(convertToDTO(publication, null));
+        sendNotification(publication);
         return publicationRepository.save(publication);
+    }
+
+    public void sendNotification(Publication publication) {
+        NotificationDto notification = new NotificationDto();
+        notification.setTitle("Nouvelle publication de " + publication.getAuthor().getUsername());
+        notification.setBody(publication.getTitle());
+        notificationService.sendNotification(publication.getAuthor().getId(), notification);
     }
     
     public Publication updatePublication(Long id, String title, String content, String imageUrl, User author) {
@@ -116,8 +130,10 @@ public class PublicationService {
         comment.setContent(content);
         comment.setAuthor(author);
         comment.setPublication(publication);
-        
-        return commentRepository.save(comment);
+
+        comment = commentRepository.save(comment);
+        publicationProducer.sendComment(comment);
+        return comment;
     }
     
     @Transactional(readOnly = true)

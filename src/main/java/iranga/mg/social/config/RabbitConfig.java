@@ -35,6 +35,47 @@ public class RabbitConfig {
     public final static String WEBRTC_CALL_END_QUEUE = "webrtc_call_end_queue";
     public final static String WEBRTC_CALL_CANDIDATE_QUEUE = "webrtc_call_candidate_queue";
 
+    public final static String PUBLICATION_EXCHANGE = "publication_exchange";
+    public final static String PUBLICATION_QUEUE = "publication_queue";
+
+    public final static String COMMENT_QUEUE = "comment_queue";
+    public final static String COMMENT_EXCHANGE = "comment_exchange";
+
+
+    @Bean
+	public Queue createCommentQueue() {
+		return QueueBuilder.durable(COMMENT_QUEUE).build();
+	}
+
+    @Bean
+	public TopicExchange createCommentExchange() {
+		return ExchangeBuilder.topicExchange(COMMENT_EXCHANGE).build();
+	}
+
+    @Bean
+	public Binding createCommentBinding() {
+		return BindingBuilder.bind(createCommentQueue())
+				.to(createCommentExchange())
+				.with("comment.*");
+	}
+
+    @Bean
+	public Queue createPublicationQueue() {
+		return QueueBuilder.durable(PUBLICATION_QUEUE).build();
+	}
+
+    @Bean
+	public TopicExchange createPublicationExchange() {
+		return ExchangeBuilder.topicExchange(PUBLICATION_EXCHANGE).build();
+	}
+
+    @Bean
+	public Binding createPublicationBinding() {
+		return BindingBuilder.bind(createPublicationQueue())
+				.to(createPublicationExchange())
+				.with("publication.*");
+	}
+
 	@Bean
 	public Queue createChatMessagingQueue() {
 		return QueueBuilder.durable(CHAT_MESSAGING_QUEUE).build();
