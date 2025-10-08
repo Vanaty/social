@@ -6,6 +6,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +39,8 @@ public class PublicationService {
 
     @Autowired
     private PublicationProducer publicationProducer;
+
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PublicationService.class);
     
     public Publication createPublication(String title, String content, String imageUrl, User author) {
         Publication publication = new Publication();
@@ -53,12 +56,16 @@ public class PublicationService {
         return publicationRepository.save(publication);
     }
 
+    @Async
     public void sendNotification(Publication publication) {
+        logger.info("Sending notification for new publication by user {}", publication.getAuthor().getUsername());
         NotificationDto notification = new NotificationDto();
+
         notification.setTitle("Nouvelle publication de " + publication.getAuthor().getUsername());
         notification.setBody(publication.getTitle().length() > 50 ? publication.getTitle().substring(0, 50) + "..." : publication.getTitle());
-        notification.setData(Map.of("type", "publication", "sender", publication.getAuthor().getUsername(), "publicationId", publication.getId()));
+        notification.setData(Map.of("type", "publication", "sender", publication.getAuthor().getUsername()));
         notificationService.sendNotification(publication.getAuthor().getId(), notification);
+        logger.info("Notification sent for publication id {}", publication.getId());
     }
     
     public Publication updatePublication(Long id, String title, String content, String imageUrl, User author) {

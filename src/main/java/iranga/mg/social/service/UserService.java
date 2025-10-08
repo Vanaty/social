@@ -1,5 +1,6 @@
 package iranga.mg.social.service;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -51,7 +52,7 @@ public class UserService {
                 .getId();
         
         //Delete old tokens for the user
-        LocalDateTime oneMonthAgo = LocalDateTime.now().minusMonths(1);
+        Instant oneMonthAgo = Instant.now().minusMillis(30 * 24 * 60 * 60 * 1000L);
         expoTokenRepository.findOldTokenByUserId(userId, oneMonthAgo).ifPresent(oldTokens -> {
             expoTokenRepository.deleteAll(oldTokens);
         });

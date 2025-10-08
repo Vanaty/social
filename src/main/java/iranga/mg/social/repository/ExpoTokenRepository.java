@@ -1,7 +1,6 @@
 package iranga.mg.social.repository;
 
-import java.lang.StackWalker.Option;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,6 +18,6 @@ public interface ExpoTokenRepository extends JpaRepository<ExpoToken, Long> {
     public Optional<ExpoToken> findByToken(String token);
 
     @Query("SELECT e FROM ExpoToken e WHERE e.user.id = ?1 AND e.createdAt < :oneMonthAgo")
-    Optional<List<ExpoToken>> findOldTokenByUserId(@Param("userId") Long userId, @Param("oneMonthAgo") LocalDateTime oneMonthAgo);
+    Optional<List<ExpoToken>> findOldTokenByUserId(@Param("userId") Long userId, @Param("oneMonthAgo") Instant oneMonthAgo);
 
 }
