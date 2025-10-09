@@ -51,9 +51,10 @@ public class PublicationService {
         publication.setCreatedAt(LocalDateTime.now());
         publication.setUpdatedAt(LocalDateTime.now());
 
-        publicationProducer.sendPublication(convertToDTO(publication, null));
+        publication = publicationRepository.save(publication);
+        publicationProducer.sendPublication(convertToDTO(publication, publication.getAuthor()));
         sendNotification(publication);
-        return publicationRepository.save(publication);
+        return publication;
     }
 
     @Async

@@ -172,4 +172,13 @@ public class MessageService {
                 .orElseThrow(() -> new RuntimeException("Chat not found"));
         return chat.getParticipants();
     }
+
+
+    public Message getLastMessageInChat(Long chatId) {
+        return messageRepository.findTopByChatIdOrderByTimestampDesc(chatId).orElse(null);
+    }
+
+    public int countUnreadMessages(Long chatId, Long userId) {
+        return messageRepository.countByChatIdAndSenderIdNotAndIsReadFalse(chatId, userId);
+    }
 }

@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import iranga.mg.social.dto.chat.ChatGetDTO;
 import iranga.mg.social.model.Chat;
 import iranga.mg.social.model.Message;
 import iranga.mg.social.model.User;
@@ -89,7 +90,7 @@ public class ChatController {
 
     @GetMapping
     @Operation(summary = "Get all chats for the authenticated user")
-    public ResponseEntity<Page<Chat>> getUserChats(@AuthenticationPrincipal UserDetails userDetails, Pageable pageable) {
+    public ResponseEntity<Page<ChatGetDTO>> getUserChats(@AuthenticationPrincipal UserDetails userDetails, Pageable pageable) {
         User currentUser = userRepository.findUserByUsername(userDetails.getUsername()).orElse(null);
         if (currentUser == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         return ResponseEntity.ok(chatService.getUserChats(currentUser, pageable));

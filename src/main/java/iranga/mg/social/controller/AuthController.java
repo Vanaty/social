@@ -78,10 +78,23 @@ public class AuthController {
     @Operation(summary = "User registration")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest registerRequest) {
         if (userRepository.findUserByUsername(registerRequest.getUsername()).isPresent()) {
-            return ResponseEntity.badRequest().body("Username already exists");
+            return ResponseEntity.badRequest().body(Map.of("error", "Username already exists", "fields", Map.of("username", "Username already exists")));
         }
         authServie.registreUser(registerRequest);
-        return ResponseEntity.ok("User registered successfully");
+        authenticationManager.authenticate(
+            new UsernamePasswordAuthenticationToken(registerRequest.getUsername(), registerRequest.getPassword())
+        );
+
+        UserDetails userDetails = userDetailsService.loadUserByUsername(registerRequest.getUsername());
+        User user = userRepository.findUserByUsername(userDetails.getUsername()).orElseThrow(() -> new RuntimeException("User not found"));
+        String jwt = jwtUtil.generateToken(userDetails);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("token", jwt);
+        response.put("username", userDetails.getUsername());
+        response.put("userId", user.getId());
+        response.put("user", user);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/check-username")

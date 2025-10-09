@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import iranga.mg.social.dto.chat.ChatGetDTO;
 import iranga.mg.social.exception.AccessGranted;
 import iranga.mg.social.messaging.MessageProducer;
 import iranga.mg.social.model.Chat;
@@ -107,11 +108,21 @@ public class ChatService {
         return messageService.getChatMessages(chatId, pageable);
     }
 
-    public Page<Chat> getUserChats(User user, Pageable pageable) {
+    public Page<ChatGetDTO> getUserChats(User user, Pageable pageable) {
         return chatRepository.findByUser(user, pageable).map(chat -> {
             chat.getParticipants().size();
-            return chat;
+            int unreadMessagesCount = messageService.countUnreadMessages(chat.getId(), user.getId());
+            Message latestMessage = messageService.getLastMessageInChat(chat.getId());
+            return new ChatGetDTO(chat, unreadMessagesCount, latestMessage);
         });
+    }
+
+    public Message getLastMessage(Long chatId) {
+        return messageService.getLastMessageInChat(chatId);
+    }
+
+    public int countUnreadMessages(Long chatId, Long userId) {
+        return messageService.countUnreadMessages(chatId, userId);
     }
 
     public Chat getChatDetails(Long chatId, User user) {
